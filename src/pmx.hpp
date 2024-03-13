@@ -258,7 +258,9 @@ void permittivity(env &dat);
 Eigen::Vector3d perpvec(Eigen::Vector3d v);
 Eigen::Vector3d tanvec(Eigen::Vector3d v, Eigen::Vector3d q);
 Eigen::Vector3d normvec(Eigen::Vector3d v);
-std::complex<double> diracdelta(std::complex<double> value);
+extern std::complex<double> (*diracdelta) (std::complex<double> value);
+inline std::complex<double> diracdelta_lorentzian(std::complex<double> x);
+inline std::complex<double> diracdelta_gaussian(std::complex<double> x);
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw);
 } /* namespace pmx */
 #endif /* PMX_H_ */
