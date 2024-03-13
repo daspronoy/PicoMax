@@ -1,5 +1,8 @@
 #!/bin/bash
 
+PICOMAX_EXE="/home/mjh92/projects/picomax/src/picomax"
+
+
 # -numpw : number of plane waves {124, 342, 728, 1330, 2196}
 # -numband : number of bands to consider {8}
 # -gridscheme : k-grid scheme (0: Cohen-Cahdi, 1: Monkhorst-Pack)
@@ -176,3 +179,75 @@ FREQ="-numfreq 1 -dfreq 1"
 
     # FCC_FBZ/10 -> 0.987795
 
+
+picomax 
+
+-debug 3 # debug level
+
+-wdir /tmp/picomax/ # working directory
+-outputfile filename # writes outputfile "filename.dat" in the working directory
+-logfile 1  # writes logfile "filename.log" in the working directory
+
+-kpointfile ... # just use kpointfile if kpointfile is provided
+-kpoint 0 -kpointorder 11 # 11x11x11 Full BZ
+-kpoint 1 -kpointorder 11 # 11x11x11 Monkhorst-Pack grid
+-kpoint 2 -kpointorder 3 # Cohen-Chadi grid with order 3
+# option to directly provide kpoints? hmmf...
+
+
+-switch eps # calculates dielectric matrix
+-switch el # calculates electronic bands
+-encut 400 # planewave grids energy cutoff [eV]
+-neps 9 # size of dielectric matrix
+
+-qvec 0,0,0 # q-vector [2*pi/a]
+-qvec 0,0,0,1,0,0 # q-vectors {q1x,q1y,q1z,q2x,q2y,q2z,...}
+-qnum 10,10,5,5,10
+-qpath L,G,X,W,K,G
+
+-nfreq 1001 # number of frequency
+-dfreq 0.05 # frequency interval [eV]
+-kk 1   # kramers-kronig transformation for real parts of dielectric constants
+-epsilon 0.1 # delta function
+-delta 1 # Lorentzian or gaussian?
+
+-a 4.5  # lattice constant [angstrom]
+-epm 1,2,3,4,5,6 # empirical pseudopotential form factors [rydberg]
+-nband 20 # number of electronic bands
+-originshift 0 # 
+
+
+-gammazero 1e-6,0,0 # shift for the gamma-point to avoid singularity
+
+
+
+
+
+-crystal fcc # will other crystal structures be supported?
+
+
+## subroutine
+* generate q-vectors
+* assign symmetries to the q-vector paths
+    0 -> none
+    1 -> [100] C4v
+    2 -> [111] C3v
+    3 -> [110] C2v
+    4 -> Rz
+
+
+* how to print progress? - log?
+
+
+
+
+#### Demo 1
+# picomax -help
+# picomax -h
+
+
+# picomax -version
+# picomax -v
+
+####
+# picomax -debug 3 -a 4.5 -epm 1,2,3,4,5,6 -kpointfile /home/mjh92/projects/picomax/include/kpoints/KPOINT_5x5x5.txt -encut 200 -nband 20 -nfreq 101 -dfreq 0.1

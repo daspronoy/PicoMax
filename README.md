@@ -1,6 +1,23 @@
 # picomax
 
 
+## Todo:
+* add OUTPUT path arg
+    picomax ... -output 1 -filename .../output.dat
+* add ECUT arg
+    picomax ... -ecut 100 ...
+* add KPOINT command input arg
+    picomax ... -kpoint 100,100,0,0,0,1,0,0,1,1,...
+* add input parameter pattern file?
+    picomax ... -inputfile .../inputparam.txt
+* add logfile output
+    picomax ... -logfile true? (check other software languages)
+* add 
+
+
+
+
+
 
 
 ## Features
@@ -33,6 +50,10 @@
 
 
 ## Future plans
+
+
+
+
 
 * Progress bar
     Starting computation...
@@ -81,8 +102,6 @@
 
 
 
-## GIT commands:
-
-
+## GIT terminal commands:
 git commit -a -m "message"
 git push
