@@ -39,74 +39,36 @@ classdef picomax < handle & matlab.mixin.SetGet
             end
         end
 
-           
-        % function [] = compute_epsM(o)
-        %     % Compute macroscopic dielectric constants
-        % 
-        %     epsmnL = o.dat.realepsL+1i*o.dat.imagepsL;
-        %     epsmnT = o.dat.realepsT+1i*o.dat.imagepsT;
-        % 
-        % 
-        %     NEPS = o.neps;
-        %     NFREQ = o.nfreq;
-        %     NQ = sum(o.numq)+1;
-        % 
-        %     if NQ==1 && norm(o.q)==0
-        %         epsmnL(:,1,:,:) = epsmnT(:,1,:,:);
-        %     end
-        % 
-        % 
-        %     invepsmnL = zeros(NFREQ,NQ,NEPS,NEPS);
-        %     eigvalue_L = zeros(NFREQ,NQ,NEPS);
-        %     % invepsmnT = zeros(NFREQ,NQ,NEPS,NEPS);
-        %     eigvalue_T = zeros(NFREQ,NQ,NEPS);
-        % 
-        %     for f=1:NFREQ
-        %         for q=1:NQ
-        %             epsmn_L = zeros(NEPS);
-        %             for m=1:NEPS
-        %                 for n=1:m
-        %                     idx = (m-1)*m/2+n;
-        %                     epsmn_L(m,n) = epsmnL(f,q,idx);
-        %                     if (m~=n)
-        %                         epsmn_L(n,m) = conj(epsmn_L(m,n));
-        %                     end
-        %                 end
-        %             end
-        %             invepsmnL(f,q,:,:) = inv(epsmn_L);
-        %             tmpeig = eig(epsmn_L);
-        %             for m=1:NEPS
-        %                 eigvalue_L(f,q,m) = tmpeig(m);
-        %             end
-        % 
-        % 
-        %             epsmn_T = zeros(NEPS);
-        %             for m=1:NEPS
-        %                 for n=1:m
-        %                     idx = (m-1)*m/2+n;
-        %                     epsmn_T(m,n) = epsmnT(f,q,idx);
-        %                     if (m~=n)
-        %                         epsmn_T(n,m) = conj(epsmn_T(m,n));
-        %                     end
-        %                 end
-        %             end
-        %             % invepsmnT(f,:,:) = inv(epsmn_T);
-        %             tmpeig = eig(epsmn_T);
-        %             for m=1:NEPS
-        %                 eigvalue_T(f,q,m) = tmpeig(m);
-        %             end
-        %         end
-        %     end
-        % 
-        %     o.dat.epsilon00 = epsmnL(:,:,1,1);
-        %     o.dat.epsilonM = 1./invepsmnL(:,:,1,1);
-        %     o.dat.alpha_L = eigvalue_L;
-        %     o.dat.alpha_T = eigvalue_T;
-        % 
-        % 
-        % 
-        % end
+        function [] = import(o,filename,option)
 
+            % load data
+            fid = fopen(filename);
+            data = fread(fid,'double');
+            fclose(fid);
+
+            % parse data
+            if strcmp(option,'eps')
+                nfreq = o.num.nfreq;
+                o.dat.omega = o.num.dfreq*(0:1:nfreq-1);
+                if (~isempty(o.num.qnum) && ~isempty(o.num.qpath))
+                    nq = sum(o.num.qnum)+1;
+                    o.dat.qi = 0:nq-1;
+                else
+                    nq = 1;
+                    o.dat.qi = 0;
+                end
+                ne = o.num.neps*(o.num.neps+1)/2;
+                N = ne*nq*nfreq;
+
+                o.dat.realepsL = permute(reshape(data(0*N+1:1*N),[nfreq ne nq]),[1 3 2]);
+                o.dat.imagepsL = permute(reshape(data(1*N+1:2*N),[nfreq ne nq]),[1 3 2]);
+                o.dat.realepsT = permute(reshape(data(2*N+1:3*N),[nfreq ne nq]),[1 3 2]);
+                o.dat.imagepsT = permute(reshape(data(3*N+1:4*N),[nfreq ne nq]),[1 3 2]);
+
+            elseif strcmp(option,'eband')
+                
+            end
+        end
 
         function [k,f] = highsym_point(~,point,crystal)
             if strcmp(crystal,'fcc')

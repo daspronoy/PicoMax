@@ -155,6 +155,11 @@ struct env {
     double ****realepsT;
     double ****imagepsT;
 
+    // lattice susceptibility tensor matrix [i][j][q][m][n][f]
+    double ******realepsij;
+    double ******imagepsij;
+
+
     // electronic bandstructure [q][n]
     double **band;
     
@@ -234,6 +239,8 @@ void printInput(env &dat);
 void printBand(env &dat);
 void printEpsilon(env &dat);
 void writeEpsilon(env &dat);
+void writeEpsilon_tensor(env &dat);
+
 
 // basis.cpp
 void generate_planewaves (env &dat);
@@ -262,5 +269,6 @@ extern std::complex<double> (*diracdelta) (std::complex<double> value);
 inline std::complex<double> diracdelta_lorentzian(std::complex<double> x);
 inline std::complex<double> diracdelta_gaussian(std::complex<double> x);
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw);
+void chi_tensor(env &dat);
 } /* namespace pmx */
 #endif /* PMX_H_ */

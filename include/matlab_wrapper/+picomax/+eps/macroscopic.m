@@ -9,22 +9,22 @@
 
 function [] = macroscopic(o)
 
-NEPS = o.num.NEPS;
-NFREQ = o.num.NFREQ;
-NQ = sum(o.num.QNUM)+1;
+neps = o.num.neps;
+nfreq = o.num.nfreq;
+nq = sum(o.num.qnum)+1;
 
 epsmnL = o.dat.realepsL+1i*o.dat.imagepsL;
 epsmnT = o.dat.realepsT+1i*o.dat.imagepsT;
-if NQ==1 && norm(o.num.QVEC)==0
+if nq==1 && norm(o.num.qvec)==0
     epsmnL(:,:,1) = epsmnT(:,:,1);
 end
 
 %-- longitudinal
-invepsmnL = zeros(NFREQ,NQ,NEPS,NEPS);
-for f=1:NFREQ
-    for q=1:NQ
-        epsmn_L = zeros(NEPS);
-        for m=1:NEPS
+invepsmnL = zeros(nfreq,nq,neps,neps);
+for f=1:nfreq
+    for q=1:nq
+        epsmn_L = zeros(neps);
+        for m=1:neps
             for n=1:m
                 idx = (m-1)*m/2+n;
                 epsmn_L(m,n) = epsmnL(f,q,idx);
@@ -51,12 +51,12 @@ a = o.sys.a*1e-10; % lattice constant [m]
 c0 = 3e8; % speed of light [m/s]
 hbar_eV = 4.135667696e-15; % planck constant [eV*s]
 w = o.dat.omega(:)/hbar_eV; % frequency [rad/s]
-qvec = o.num.QVEC;
-invepsmnT = zeros(NFREQ,NQ,NEPS,NEPS);
-for f=1:NFREQ
-    for q=1:NQ
-        epsmn_T = zeros(NEPS);
-        for m=1:NEPS
+qvec = o.num.qvec;
+invepsmnT = zeros(nfreq,nq,neps,neps);
+for f=1:nfreq
+    for q=1:nq
+        epsmn_T = zeros(neps);
+        for m=1:neps
             for n=1:m
                 idx = (m-1)*m/2+n;
                 epsmn_T(m,n) = epsmnT(f,q,idx);
@@ -66,7 +66,7 @@ for f=1:NFREQ
             end
         end
         % diagonal terms
-        for m=1:NEPS
+        for m=1:neps
             qg = qvec(:,q)+g(m,:).';
             qg = qg*2*pi/a;
             norm2qg = sum(abs(qg).^2,1);

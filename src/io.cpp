@@ -16,6 +16,8 @@ double EPSILON = 0.1; // delta function epsilon
 int ORIGINSHIFT = 0; //
 bool EPM_NONLOCAL = false; //
 int NVALENCE = 4; // number of valence electronic bands
+int KK = 1; // kramers-kronig transform
+
 
 namespace pmx {
 
@@ -358,7 +360,6 @@ void printEpsilon(env &dat){
             }
         }
     }
-    
 
     for (int q=0; q<NQ; q++){
         for (int m=0; m<NEPS; m++){
@@ -447,7 +448,32 @@ void writeEpsilon(env &dat){
 
     file.close();
     return;
+}
 
+
+void writeEpsilon_tensor(env &dat){
+    std::string outputfile = std::string(dat.wdir)+"/"+dat.outputfile+".dat";
+    std::ofstream file(outputfile, std::ios::binary);
+    for (int i=0; i<3; i++){ for (int j=0; j<3; j++){
+        for (int q=0; q<NQ; q++){
+            for (int m=0; m<NEPS; m++){ for (int n=0; n<=m; n++){
+                for (int f=0; f<NFREQ; f++){
+                    file.write(reinterpret_cast<char*>(&dat.realepsij[i][j][q][m][n][f]), sizeof dat.realepsij[i][j][q][m][n][f]);
+                }
+            }}
+        }
+    }}
+    for (int i=0; i<3; i++){ for (int j=0; j<3; j++){
+        for (int q=0; q<NQ; q++){
+            for (int m=0; m<NEPS; m++){ for (int n=0; n<=m; n++){
+                for (int f=0; f<NFREQ; f++){
+                    file.write(reinterpret_cast<char*>(&dat.imagepsij[i][j][q][m][n][f]), sizeof dat.imagepsij[i][j][q][m][n][f]);
+                }
+            }}
+        }
+    }}
+    file.close();
+    return;
 }
 
 }

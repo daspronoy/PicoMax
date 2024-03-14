@@ -81,8 +81,26 @@ int main (int argc, char **argv) {
 
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
+        std::cout << "elapsed time: " << elapsed_seconds.count() << " s\n";
     }
     
+    if(inp.existOption("-switch") 
+        && (inp.valueOption("-switch")=="epsij")){
+        start = std::chrono::system_clock::now();
+
+        // obtain reference energy level
+        pmx::setRefEnergy(dat);
+
+        // permittivity calculation
+        pmx::chi_tensor(dat);
+
+        // pmx::printEpsilon(dat);
+        pmx::writeEpsilon_tensor(dat);
+
+        end = std::chrono::system_clock::now();
+        elapsed_seconds = end-start;
+        std::cout << "elapsed time: " << elapsed_seconds.count() << " s\n";
+    }
 
 
     // std::cout << "permittivity calculation...\n";
