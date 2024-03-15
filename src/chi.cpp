@@ -997,7 +997,7 @@ void chi_tensor(env &dat){
                             // imaginary part
                             for (int i=0; i<3; i++){
                                 for (int j=0; j<3; j++){
-                                    tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
+                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
                                                         * (*diracdelta)(depsilon-dat.freq[f]);
 
                                 }
@@ -1005,7 +1005,7 @@ void chi_tensor(env &dat){
                             if (dat.kk==0){
                                 for (int i=0; i<3; i++){
                                     for (int j=0; j<3; j++){
-                                        tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
+                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
                                                         / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
                                     }
                                 }

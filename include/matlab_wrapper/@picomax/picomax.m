@@ -68,6 +68,21 @@ classdef picomax < handle & matlab.mixin.SetGet
 
             elseif strcmp(option,'eband')
                 
+            elseif strcmp(option,'epsij')
+                nfreq = o.num.nfreq;
+                o.dat.omega = o.num.dfreq*(0:1:nfreq-1);
+                if (~isempty(o.num.qnum) && ~isempty(o.num.qpath))
+                    nq = sum(o.num.qnum)+1;
+                    o.dat.qi = 0:nq-1;
+                else
+                    nq = 1;
+                    o.dat.qi = 0;
+                end
+                ne = o.num.neps*(o.num.neps+1)/2;
+                N = 3*3*ne*nq*nfreq;
+
+                o.dat.realepsij = permute(reshape(data(1:N),[nfreq ne nq 3 3]),[1 3 2 4 5]);
+                o.dat.imagepsij = permute(reshape(data(N+1:2*N),[nfreq ne nq 3 3]),[1 3 2 4 5]);
             end
         end
 
