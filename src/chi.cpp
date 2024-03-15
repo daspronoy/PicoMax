@@ -672,9 +672,7 @@ void chi_tensor(env &dat){
     int NBAND_V [NKPT]; // number of valence bands
     int NBAND_C [NKPT]; // number of conduction bands
 
-    Eigen::Vector3d n_qg_m, n_qg_n; // normal vector, \vec{n}_{q+g_m}, \vec{n}_{q+g_n}
-    Eigen::Vector3d t_qg_m, t_qg_n; // tangential vector, \vec{n}_{q+g}
-    Eigen::Vector3d p_qg_m, p_qg_n; // auxilary tangential vector, p_qg = n_qg.cross(t_qg);
+
 
 
 
@@ -702,9 +700,6 @@ void chi_tensor(env &dat){
             }
         }
     }
-
-
-
 
     //======================================================================
     eigvalue_k = new double *[NKPT];
@@ -741,8 +736,6 @@ void chi_tensor(env &dat){
     
 
     //======================================================================
-
-
     // initialize large temporary variables
     // overlap integral, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
     std::complex<double> *******oint;
@@ -763,13 +756,11 @@ void chi_tensor(env &dat){
         }
     }
 
-
     eigvalue_kq = new double *[NKPT];
     eigvector_kq = new std::complex<double> **[NKPT];
     for (int k=0; k<NKPT; k++){
         eigvalue_kq[k] = new double [NBAND];
     }
-
     for (int q=0; q<NQ; q++){
         Eigen::Vector3d Q = dat.Q[q];
         #pragma omp parallel for
@@ -804,190 +795,190 @@ void chi_tensor(env &dat){
                 }
             }
 
+            Eigen::Vector3d n_qg_m, n_qg_n; // normal vector, \vec{n}_{q+g_m}, \vec{n}_{q+g_n}
+            Eigen::Vector3d t_qg_m, t_qg_n; // tangential vector, \vec{n}_{q+g}
+            Eigen::Vector3d p_qg_m, p_qg_n; // auxilary tangential vector, p_qg = n_qg.cross(t_qg);
             // overlap integrals
-            for (int m=0; m<NEPS; m++){
-                for (int n=0; n<=m; n++){
+            for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
                     
-                    // normal and tangential vectors
-                    n_qg_m = normvec(Q+dat.G[m]);
-                    n_qg_n = normvec(Q+dat.G[n]);
-                    t_qg_m = perpvec(Q+dat.G[m]);
-                    t_qg_n = perpvec(Q+dat.G[n]);
-                    p_qg_m = n_qg_m.cross(t_qg_m);
-                    p_qg_n = n_qg_n.cross(t_qg_n);
+                // normal and tangential vectors
+                n_qg_m = normvec(Q+dat.G[m]);
+                n_qg_n = normvec(Q+dat.G[n]);
+                t_qg_m = perpvec(Q+dat.G[m]);
+                t_qg_n = perpvec(Q+dat.G[n]);
+                p_qg_m = n_qg_m.cross(t_qg_m);
+                p_qg_n = n_qg_n.cross(t_qg_n);
 
 
 
-                    for (int v=0; v<NBAND_V[k]; v++){ // valence bands
+                for (int v=0; v<NBAND_V[k]; v++){ // valence bands
 
-                        // 00 (LL)
-                        oint[0][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
-                                }
+                    // 00 (LL)
+                    oint[0][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
                             }
-                            oint[0][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
-                        }
-
-                        // 01 (LT)
-                        oint[0][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
-                                }
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
                             }
-                            oint[0][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
                         }
+                        oint[0][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 02 (LT')
-                        oint[0][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
-                                }
+                    // 01 (LT)
+                    oint[0][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
                             }
-                            oint[0][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
+                            }
                         }
+                        oint[0][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 10 (TL)
-                        oint[1][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
-                                }
+                    // 02 (LT')
+                    oint[0][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(n_qg_m);
                             }
-                            oint[1][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
+                            }
                         }
+                        oint[0][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 11 (TT)
-                        oint[1][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
-                                }
+                    // 10 (TL)
+                    oint[1][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
                             }
-                            oint[1][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
+                            }
                         }
+                        oint[1][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 12 (TT')
-                        oint[1][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
-                                }
+                    // 11 (TT)
+                    oint[1][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
                             }
-                            oint[1][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
+                            }
                         }
+                        oint[1][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 20 (T'L)
-                        oint[2][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
-                                }
+                    // 12 (TT')
+                    oint[1][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(t_qg_m);
                             }
-                            oint[2][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
+                            }
                         }
+                        oint[1][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 21 (T'T)
-                        oint[2][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
-                                }
+                    // 20 (T'L)
+                    oint[2][0][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
                             }
-                            oint[2][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(n_qg_n);
+                            }
                         }
+                        oint[2][0][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
 
-                        // 22 (T'T')
-                        oint[2][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                        for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-                            std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-                            std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-                            for (int i=0; i<NPW; i++){
-                                if (dat.loci[m][i]!=-1){
-                                    oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
-                                                                * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
-                                }
-                                if (dat.loci[n][i]!=-1){
-                                    oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
-                                                                * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
-                                }
+                    // 21 (T'T)
+                    oint[2][1][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
                             }
-                            oint[2][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(t_qg_n);
+                            }
                         }
+                        oint[2][1][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                    }
+
+                    // 22 (T'T')
+                    oint[2][2][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
+                    for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                        std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
+                        std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
+                        for (int i=0; i<NPW; i++){
+                            if (dat.loci[m][i]!=-1){
+                                oint_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.loci[m][i]] 
+                                                            * (dat.G[i]+K +dat.G[m]/2+Q/2).dot(p_qg_m);
+                            }
+                            if (dat.loci[n][i]!=-1){
+                                oint_kq_k += conj(eigvector_kq[k][c][dat.loci[n][i]]) * eigvector_k[k][v][i] 
+                                                            * (dat.G[i]+K +dat.G[n]/2+Q/2).dot(p_qg_n);
+                            }
+                        }
+                        oint[2][2][k][m][n][v][c] = oint_k_kq * oint_kq_k;
                     }
                 }
-            }
+                
+            }}
         }
         #pragma omp barrier
-
-
 
         for (int m=0; m<NEPS; m++){
             for (int n=0; n<=m; n++){
@@ -1057,7 +1048,6 @@ void chi_tensor(env &dat){
                             if (m==n){
                                 for (int f=0; f<NFREQ; f++){
                                     dat.realepsij[i][j][q][m][n][f] += 1;
-                                    dat.realepsij[i][j][q][m][n][f] += 1;
                                 }
                             }
                         }
@@ -1066,31 +1056,22 @@ void chi_tensor(env &dat){
             }
         }
 
-
-
         // free dynamically allocated memory
-        for (int i=0; i<3; i++){
-            for (int j=0; j<3; j++){
-                for (int k=0; k<NKPT; k++){
-                    for (int m=0; m<NEPS; m++){
-                        for (int n=0; n<=m; n++){
-                            for (int v=0; v<NBAND_V[k]; v++){
-                                delete [] oint[i][j][k][m][n][v];
-                            }
-                        }
+        for (int i=0; i<3; i++){for (int j=0; j<3; j++){
+            for (int k=0; k<NKPT; k++){
+                for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
+                    for (int v=0; v<NBAND_V[k]; v++){
+                        delete [] oint[i][j][k][m][n][v];
                     }
-                }
+                }}
             }
-        }
+        }}
         for (int k=0; k<NKPT; k++){
-            for (int m=0; m<NEPS; m++){
-                for (int m=0; m<NBAND_C[k]; m++){
-                    delete [] eigvector_kq[k][m];
-                }
-                delete [] eigvector_kq[k];
+            for (int m=0; m<NBAND_C[k]; m++){
+                delete [] eigvector_kq[k][m];
             }
+            delete [] eigvector_kq[k];
         }
-
     }// loop q
 
     // free dynamically allocated memory
@@ -1099,7 +1080,7 @@ void chi_tensor(env &dat){
             for (int k=0; k<NKPT; k++){
                 for (int m=0; m<NEPS; m++){
                     for (int n=0; n<=m; n++){
-                        delete [] oint[k][m][n];
+                        delete [] oint[i][j][k][m][n];
                     }
                     delete [] oint[i][j][k][m];
                 }

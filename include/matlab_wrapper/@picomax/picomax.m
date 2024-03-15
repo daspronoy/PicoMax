@@ -36,6 +36,7 @@ classdef picomax < handle & matlab.mixin.SetGet
 
             elseif strcmp(option,'eps')
                 o.permittivity;
+            elseif strcmp(option,'epsij')
             end
         end
 
