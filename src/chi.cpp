@@ -934,17 +934,11 @@ void chi_tensor_LF(env &dat){
                                 std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
                                 for (int p=0; p<NPW; p++){
                                     oint_k_kq += conj(eigvector_k[k][v][p]) * C_kqgm[c][p] 
-                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2); // +dat.G[m]/2
+                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2+dat.G[m]/2); // 
                                     oint_kq_k += conj(C_kqgn[c][p]) * eigvector_k[k][v][p] 
-                                                                    * (dat.G[p]+K+Q/2).dot(uvec_n[j]); // +dat.G[n]/2
-                                    // if (dat.loci[m][p]!=-1){
-                                        
-                                    // }
-                                    // if (dat.loci[n][p]!=-1){
-                                        
-                                    // }
+                                                                    * (dat.G[p]+K+Q/2+dat.G[n]/2).dot(uvec_n[j]); // 
                                 }
-                                oint[i][j][k][m][n][v][c] = oint_k_kq * oint_kq_k;
+                                oint[i][j][k][m][n][v][c] = (oint_k_kq * oint_kq_k).real();
                             }
                         }
                     }}
@@ -960,7 +954,7 @@ void chi_tensor_LF(env &dat){
                     // temporary variables
                     double tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
                     double tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-                    double depsilon = 0;
+                    double depsilon = 0; // E_{k+q,c}-E_{k,v}
                     double realdL, imagdL, realdT, imagdT;
 
                     // sum over k-grids & bands
@@ -972,7 +966,6 @@ void chi_tensor_LF(env &dat){
                                 for (int j=0; j<3; j++){
                                     tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]).real() 
                                                         * (*diracdelta)(depsilon-dat.freq[f]);
-
                                 }
                             }
                             if (dat.kk==0){
@@ -994,7 +987,6 @@ void chi_tensor_LF(env &dat){
                         }else{
                             dat.imagepsij[i][j][q][m][n][f] = 0;
                         }
-                            
                     }}
                     if (dat.kk==0){
                         for (int i=0; i<3; i++){for (int j=0; j<3; j++){
@@ -1113,35 +1105,35 @@ inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
 
 
 
-// // Original?
-// inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (v(1)!=0){
-//         p << -v(1), v(0), 0;
-//     }else if (v(1)==0 && v(2)!=0){
-//         p << v(2), 0, -v(0);
-//     }else if (v(1)==0 && v(2)==0){
-//         p << 1, 0, 0;
-//     }
-//     p = p/p.norm();
-
-//     return p;
-// }
-
-
+// Original?
 inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
     Eigen::Vector3d p;
-    if (v(2)!=0){
-        p << 0, -v(2), v(1);
-    }else if (v(2)==0 && v(1)!=0){
+    if (v(1)!=0){
         p << -v(1), v(0), 0;
+    }else if (v(1)==0 && v(2)!=0){
+        p << v(2), 0, -v(0);
     }else if (v(1)==0 && v(2)==0){
-        p << 0, 0, 1;
+        p << 1, 0, 0;
     }
     p = p/p.norm();
 
     return p;
 }
+
+
+// inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(2)!=0){
+//         p << 0, -v(2), v(1);
+//     }else if (v(2)==0 && v(1)!=0){
+//         p << -v(1), v(0), 0;
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 0, 0, 1;
+//     }
+//     p = p/p.norm();
+
+//     return p;
+// }
 
 
 
@@ -1403,12 +1395,12 @@ std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec){
     tvec = tanvec(nvec);
     pvec = nvec.cross(tvec);
 
-    // std::complex<double> im = std::complex<double>(0.0,1.0);
-    // uvec[1] = (tvec+im*pvec)/sqrt(2);
-    // uvec[2] = (tvec-im*pvec)/sqrt(2);
+    std::complex<double> im = std::complex<double>(0.0,1.0);
+    uvec[1] = (tvec+im*pvec)/sqrt(2);
+    uvec[2] = (tvec-im*pvec)/sqrt(2);
 
-    uvec[1] = tvec;
-    uvec[2] = pvec;
+    // uvec[1] = tvec;
+    // uvec[2] = pvec;
     return uvec;
 }
 

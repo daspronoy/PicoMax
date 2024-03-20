@@ -10,10 +10,10 @@
 #include <iostream>
 #include <fstream>
 #include <math.h>
-#include <ctime>
 #include <cmath>
 #include <complex>
-#include <fstream>
+#include <chrono>
+#include <ctime>
 #include <string>
 #include <sstream>
 #include <algorithm>
@@ -74,6 +74,8 @@ namespace pmx {
 // environment variables
 struct env {
     
+    float version = 0.1;
+
     // general options
     int debug = 0; // debug level
     char *outputfile; // filename of outputfile
