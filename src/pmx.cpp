@@ -29,7 +29,13 @@ int main (int argc, char **argv) {
 
 
     //------------------------------------------
+    
+    // generate g-vector grids
+    std::cout << "generating G-vector grids...\n";
+    pmx::generate_planewaves(dat);
+
     // construct kpoint (k-vector grids) (not required for bandstructure calculation)
+    std::cout << "generating K-vector grids...\n";
     if (dat.kpoint==3){ // generate Cohen-Chadi grids
         pmx::genkpoint_cohen_chadi(dat);
     }else if (dat.kpoint==2){ // generate Monkhorst-Pack grids
@@ -39,9 +45,6 @@ int main (int argc, char **argv) {
     }else if (dat.kpoint==0){
         pmx::importkpointfile(dat);
     }
-    
-    // generate g-vector grids
-    pmx::generate_planewaves(dat);
 
     //------------------------------------------
     // print out input parameter (for debugging purposes)
@@ -54,13 +57,16 @@ int main (int argc, char **argv) {
     // electronic bandstructure calculation
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="band")){
-
+        std::cout << "starting electronic bandstructure calculation...\n";
         start = std::chrono::system_clock::now();
+
         pmx::empiricalpseudopotentialmethod(dat);
+
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
+        std::cout << "elapsed time: " << elapsed_seconds.count() << " s\n";
 
-        // print bandstructure results
+        // export bandstructure results
         pmx::printBand(dat);
     }
 
@@ -68,6 +74,7 @@ int main (int argc, char **argv) {
     // permittivity calculation
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="eps")){
+        std::cout << "starting susceptibility matrix calculation...\n";
         start = std::chrono::system_clock::now();
 
         // obtain reference energy level
@@ -86,13 +93,14 @@ int main (int argc, char **argv) {
     
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="epsij")){
+        std::cout << "starting susceptibility tensor matrix calculation...\n";
         start = std::chrono::system_clock::now();
 
         // obtain reference energy level
         pmx::setRefEnergy(dat);
 
         // permittivity calculation
-        pmx::chi_tensor(dat);
+        pmx::chi_tensor_LF(dat);
 
         // pmx::printEpsilon(dat);
         pmx::writeEpsilon_tensor(dat);
@@ -101,17 +109,6 @@ int main (int argc, char **argv) {
         elapsed_seconds = end-start;
         std::cout << "elapsed time: " << elapsed_seconds.count() << " s\n";
     }
-
-
-    // std::cout << "permittivity calculation...\n";
-    // start = std::chrono::system_clock::now();
-    // for (int q=0; q<dat.nq; q++){
-    //     pmx::susceptibility(dat, dat.q[q]);
-    // }
-    // std::cout << "completed!\n";
-    // end = std::chrono::system_clock::now();
-    // elapsed_seconds = end-start;
-    // std::cout << "elapsed time: " << elapsed_seconds.count() << " s\n";
 
     return 0;
 }

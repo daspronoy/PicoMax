@@ -262,13 +262,20 @@ void setRefEnergy(env &dat);
 
 // chi.cpp
 void permittivity(env &dat);
-Eigen::Vector3d perpvec(Eigen::Vector3d v);
-Eigen::Vector3d tanvec(Eigen::Vector3d v, Eigen::Vector3d q);
 Eigen::Vector3d normvec(Eigen::Vector3d v);
-extern std::complex<double> (*diracdelta) (std::complex<double> value);
-inline std::complex<double> diracdelta_lorentzian(std::complex<double> x);
-inline std::complex<double> diracdelta_gaussian(std::complex<double> x);
+
+Eigen::Vector3d perpvec(Eigen::Vector3d v);
+Eigen::Vector3d tanvec(Eigen::Vector3d v);
+Eigen::Vector3d tanvecq(Eigen::Vector3d v, Eigen::Vector3d q);
+
+extern double (*diracdelta) (double value);
+inline double diracdelta_lorentzian(double x);
+inline double diracdelta_gaussian(double x);
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw);
 void chi_tensor(env &dat);
+void chi_tensor_LF(env &dat);
+std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec);
+
+
 } /* namespace pmx */
 #endif /* PMX_H_ */

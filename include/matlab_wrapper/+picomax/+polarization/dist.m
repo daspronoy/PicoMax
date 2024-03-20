@@ -21,7 +21,7 @@ p = p.Results;
 
 
 % preallocation
-NEPS = o.num.NEPS;
+NEPS = o.num.neps;
 N = p.resolution; % resolution of spatial grids
 
 
@@ -55,7 +55,7 @@ end
 %      1     1    -1
 %      1     1     1];
 
-g = picomax.kpoint.pwgrid_fcc(o.num.GCUT);
+g = picomax.kpoint.pwgrid_fcc(7);
 
 
 
@@ -63,9 +63,9 @@ g = picomax.kpoint.pwgrid_fcc(o.num.GCUT);
 if ~isnumeric(qvec)
     qvec = picomax.highsym.fcc(qvec);
 end
-dQ = vecnorm(o.num.QVEC-qvec(:),1,1);
+dQ = vecnorm(o.num.qvec-qvec(:),1,1);
 [~,q] = min(dQ);
-qvec = o.num.QVEC(:,q);
+qvec = o.num.qvec(:,q);
 o.dat.Q = qvec;
 
 f = find(o.dat.omega>=omega,1);

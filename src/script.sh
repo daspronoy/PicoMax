@@ -126,19 +126,19 @@ FREQ="-numfreq 1 -dfreq 1"
 
 # 728
 
-/home/mjh92/projects/picomax_try/src/picomax -switch eps \
+/home/mjh92/projects/picomax/src/picomax -switch eps \
     -debug 1 \
-    -GCUT 7 \
+    -encut 7 \
     -nband 20 \
     -neps 9 \
     -a 4.35 \
     -epm -0.4280,0.1017,0.1108,0.0010,0.0800,0.0277 \
-    -q 0.5,0,0 \
+    -qvec 0.5,0,0 \
     -nfreq 1 \
     -dfreq 0.05 \
     -kk 0 \
-    -gridscheme 1 \
-    -kgridfile /home/mjh92/projects/picomax_try/KPOINTS_sample
+    -kpoint 0 \
+    -kpointfile /home/mjh92/projects/picomax_try/KPOINTS_sample
     # -numq 10,10,5,5,10 \
     # -pathq L,G,X,W,K,G
 

@@ -240,6 +240,8 @@ void inputProcess(inputParser inp, env &dat){
     // lattice constant
     if (inp.existOption("-a")){
         a = std::stod(inp.valueOption("-a"));
+    }else{
+        std::cout << "lattice constant (a) should be inserted!"; abort();
     }
 
     // parameters for empirical pseudopotential method
@@ -278,9 +280,7 @@ void printInput(env &dat){
     std::cout << "outputfile: " << dat.outputfile << std::endl;
     std::cout << "logfile: " << dat.logfile << std::endl;
 
-    std::cout << "planewave energy cutoff [eV]: " << dat.encut << std::endl;
-    std::cout << "planewave g-vector cutoff [2*pi/a]: " << dat.gcut << std::endl;
-    std::cout << "number of plane waves: " << NPW << std::endl;
+    
     std::cout << "number of electronic bands: " << NBAND << std::endl;
     std::cout << "size of dielectric matrix: " << NEPS << std::endl;
     std::cout << "Material properties" << std::endl;
@@ -296,21 +296,27 @@ void printInput(env &dat){
     // for(int i=0; i<3; i++){
     //     std::cout << dat.b[0](i) << "\t" << dat.b[1](i) << "\t" << dat.b[2](i) << std::endl;
     // }
-    std::cout << "Number of k-grids: " << NKPT << std::endl;
-    std::cout << "Order of k-grids: " << dat.kpointorder << std::endl;
-    std::cout << "Number of q-grids: " << NQ << std::endl;
-    for(int i=0; i<3; i++){
-        for(int q=0; q<NQ; q++){
-            std::cout << dat.Q[q](i) << "\t";
-        }
-        std::cout << std::endl;
-    }
+    
+    std::cout << "planewave energy cutoff [eV]: " << dat.encut << std::endl;
+    std::cout << "planewave g-vector cutoff [2*pi/a]: " << dat.gcut << std::endl;
+    std::cout << "number of plane waves: " << NPW << std::endl;
     std::cout << "Number of G-vector grids: " << NPW << std::endl;
     for(int i=0; i<3; i++){
         for(int g=0; g<NPW; g++){
             std::cout << dat.G[g](i) << "\t";
         }
         std::cout << std::endl;
+    }
+    
+    
+    if (dat.kpoint==0){
+        std::cout << "KPOINT imported from kpointfile: " << dat.kpointfile << std::endl;
+    }else if (dat.kpoint==1){
+        std::cout << "KPOINT generated for full BZ with order: " << dat.kpointorder << std::endl;
+    }else if (dat.kpoint==2){
+        std::cout << "KPOINT generated for Monkhorst-Pack grids with order: " << dat.kpointorder << std::endl;
+    }else if (dat.kpoint==3){
+        std::cout << "KPOINT generated for Cohen-Chadi grids with order: " << dat.kpointorder << std::endl;
     }
     std::cout << "Number of K-vector grids: " << NKPT << std::endl;
     for(int i=0; i<3; i++){
@@ -319,8 +325,14 @@ void printInput(env &dat){
         }
         std::cout << std::endl;
     }
-    std::cout << "kpointfile: " << dat.kpointfile << std::endl;
 
+    std::cout << "Number of q-grids: " << NQ << std::endl;
+    for(int i=0; i<3; i++){
+        for(int q=0; q<NQ; q++){
+            std::cout << dat.Q[q](i) << "\t";
+        }
+        std::cout << std::endl;
+    }
 
     std::cout << "" << std::endl;
     std::cout << "" << std::endl;

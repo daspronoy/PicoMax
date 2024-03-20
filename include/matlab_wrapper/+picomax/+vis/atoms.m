@@ -11,6 +11,7 @@ addParameter(p,'FaceColor',[0.4 0.4 0.9; 0.4 0.9 0.4]);
 addParameter(p,'Radius',[0.1 0.1]);
 addParameter(p,'LineWidth',1.5);
 addParameter(p,'LineColor','k');
+addParameter(p,'Shift',[0 0 0]);
 parse(p,varargin{:});
 p = p.Results;
 
@@ -29,7 +30,9 @@ else
 end
 
 
-
+dx = p.Shift(1);
+dy = p.Shift(2);
+dz = p.Shift(3);
 if p.unitcell==1
     x1 = [0 0 0 0 0 0.5 0.5 0.5 0.5 1 1 1 1 1];
     y1 = [0 0 0.5 1 1 0 0.5 0.5 1 0 0 0.5 1 1];
@@ -44,21 +47,22 @@ if p.unitcell==1
         6 7 10 12
         8 9 12 14];
     [xs,ys,zs] = sphere(200);
-    
-    %
+
+    % atom 1
     for i=1:numel(x1)
-        surf(R1*xs+x1(i),R1*ys+y1(i),R1*zs+z1(i), ...
+        surf(R1*xs+x1(i)+dx,R1*ys+y1(i)+dy,R1*zs+z1(i)+dz, ...
             'EdgeColor','none','FaceColor',FaceColor1)
     end
+    % atom 2
     for i=1:numel(x2)
-        surf(R2*xs+x2(i),R2*ys+y2(i),R2*zs+z2(i), ...
+        surf(R2*xs+x2(i)+dx,R2*ys+y2(i)+dy,R2*zs+z2(i)+dz, ...
             'EdgeColor','none','FaceColor',FaceColor2)
     end
     for i=1:numel(x2)
         for j=1:4
-            line([x2(i) x1(connection(i,j))], ...
-                [y2(i) y1(connection(i,j))], ...
-                [z2(i) z1(connection(i,j))], ...
+            line([x2(i) x1(connection(i,j))]+dx, ...
+                [y2(i) y1(connection(i,j))]+dy, ...
+                [z2(i) z1(connection(i,j))]+dz, ...
                 'Color',p.LineColor,'LineWidth',p.LineWidth);
         end
     end

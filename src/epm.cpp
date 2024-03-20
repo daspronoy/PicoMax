@@ -49,10 +49,10 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G, Eigen::Vector3d
 
     for (int i=0; i<NPW; i++){ for (int j=0; j<=i; j++){
         if (i==j){ // diagonal kinetic part
-            H(i,j) = KINETIC_CONST * ((K+G[i]).squaredNorm());
+            H(i,j) = KINETIC_CONST * (K+G[i]).squaredNorm();
         }else{ // local pseudopotential
-            Eigen::Vector3d dG = G[i]-G[j]; // TEST Gj-Gi or Gi-Gj
-            if (dG.norm()<3.32) // dG.squaredNorm()<11.1
+            Eigen::Vector3d dG = G[i]-G[j];
+            if (dG.squaredNorm()<11.1)
                 H(i,j) = pseudopotential(dG,v);
             else
                 H(i,j) = 0;
