@@ -8,6 +8,14 @@ namespace pmx{
 
 inline double (*diracdelta) (double value);
 
+inline double diracdelta_lorentzian(double x){
+    return EPSILON/pi/(pow(EPSILON,2)+pow(x,2));
+}
+
+inline double diracdelta_gaussian(double x){
+    return exp(-x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(pi));
+}
+
 // Calculate lattice longitudinal and transverse permittivity matrix elements at G1, G2
 void permittivity(env &dat){
 
@@ -388,331 +396,6 @@ void permittivity(env &dat){
 }
 
 
-// // Original?
-// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (v(1)!=0){
-//         p << -v(1), v(0), 0;
-//         p = p/p.norm();
-//     }else if (v(1)==0 && v(2)!=0){
-//         p << v(2), 0, -v(0);
-//         p = p/p.norm();
-//     }else if (v(1)==0 && v(2)==0){
-//         p << 0, 1, 0;
-//         // p = p/p.norm();
-//     }
-//     return p;
-// }
-
-// G-X (100) direction!!!
-inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
-    Eigen::Vector3d p;
-    if (v(2)!=0){
-        p << 0, -v(2), v(1);
-    }else if (v(2)==0 && v(1)!=0){
-        p << -v(1), v(0), 0;
-    }else if (v(1)==0 && v(2)==0){
-        p << 0, 0, 1;
-    }
-    p = p/p.norm();
-    return p;
-}
-
-
-
-
-// Original?
-inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
-    Eigen::Vector3d p;
-    if (v(1)!=0){
-        p << -v(1), v(0), 0;
-    }else if (v(1)==0 && v(2)!=0){
-        p << v(2), 0, -v(0);
-    }else if (v(1)==0 && v(2)==0){
-        p << 0, 1, 0;
-    }
-    p = p/p.norm();
-
-    return p;
-}
-
-
-// inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (v(2)!=0){
-//         p << 0, -v(2), v(1);
-//     }else if (v(2)==0 && v(1)!=0){
-//         p << -v(1), v(0), 0;
-//     }else if (v(1)==0 && v(2)==0){
-//         p << 0, 0, 1;
-//     }
-//     p = p/p.norm();
-
-//     return p;
-// }
-
-
-
-// // y-axis
-// Eigen::Vector3d perpvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (v(2)!=0){
-//         p << v(2), 0, -v(0);
-//     }else if (v(2)==0 && v(1)!=0){
-//         p << -v(1), v(0), 0;
-//     }else if (v(2)==0 && v(1)==0){
-//         p << 0, 1, 0;
-//     }
-//     p = p/p.norm();
-//     return p;
-// }
-
-
-
-// normal vector
-Eigen::Vector3d normvec(Eigen::Vector3d v){
-    if (v.norm()==0){
-        v << 1.0, 0.0, 0.0;
-    }else{
-        v = v/v.norm();
-    }
-    return v;
-}
-
-
-// // tangential vector
-// Eigen::Vector3d tanvec(Eigen::Vector3d v, Eigen::Vector3d q){
-//     Eigen::Vector3d p;
-//     double tol = 1e-7;
-
-//     if (abs(q(1))<tol && abs(q(2))<tol){ // [100]
-//         if (v(2)!=0){
-//             p << 0, -v(2), v(1); 
-//         }else if (v(2)==0 && v(1)!=0){
-//             p << -v(1), v(0), 0;
-//         }else if (v(1)==0 && v(2)==0){
-//             p << 0, 0, 1;
-//         }
-//     }else if (abs(q(0)-q(1))<tol && abs(q(1)-q(2))<tol && abs(q(2)-q(0))<tol){ // [111]
-//         if (v(1)!=0){
-//             p << -v(1), v(0), 0;
-//         }else if (v(1)==0 && v(2)!=0){
-//             p << v(2), 0, -v(0);
-//         }else if (v(1)==0 && v(2)==0){
-//             p << 0, 1, 0;
-//         }
-//     }else if (abs(q(0)-q(1))<tol && abs(q(2))<tol){ // [110]
-//         if (v(1)!=0){
-//             p << -v(1), v(0), 0;
-//         }else if (v(1)==0 && v(2)!=0){
-//             p << v(2), 0, -v(0);
-//         }else if (v(1)==0 && v(2)==0){
-//             p << 0, 1, 0;
-//         }
-//     }else{
-//         if (v(1)!=0){
-//             p << -v(1), v(0), 0;
-//         }else if (v(1)==0 && v(2)!=0){
-//             p << v(2), 0, -v(0);
-//         }else if (v(1)==0 && v(2)==0){
-//             p << 0, 1, 0;
-//         }
-//     }
-//     p = p/p.norm();
-//     return p;
-// }
-
-// tangential vector
-Eigen::Vector3d tanvecq(Eigen::Vector3d v, Eigen::Vector3d q){
-    Eigen::Vector3d p;
-    Eigen::Vector3d t;
-    double tol = 1e-7;
-    double tx, ty, tz, K;
-
-    if (abs(q(1))<tol && abs(q(2))<tol){ // [100]
-        if (abs(v(1))<tol && abs(v(2))<tol){
-            p << 0,0,1;
-        }else{
-            // tx = -1;
-            // ty = 0.5/v(2)+0.5*v(0)/v(1);
-            // tz = -0.5/v(1)+0.5*v(0)/v(2);
-
-            tx = -(pow(v(1),2)+pow(v(2),2));
-            ty = v(1)*v(0);
-            tz = v(2)*v(0);
-
-
-            p << tx,ty,tz;
-            // if (v(2)<0) p = -p;
-
-            // if (v(2)>=0){
-            //     tx = 1;
-            //     ty = -0.5/v(2)-0.5*v(0)/v(1);
-            //     tz = 0.5/v(1)-0.5*v(0)/v(2);
-            // }else{
-            //     tx = -1;
-            //     ty = 0.5/v(2)-0.5*v(0)/v(1);
-            //     tz = -0.5/v(1)-0.5*v(0)/v(2);
-            // }
-            // p << tx,ty,tz;
-        }
-    }else if (abs(q(0)-q(1))<tol && abs(q(1)-q(2))<tol){ // [111]
-        if (abs(v(1)-v(2))<tol && abs(v(2)-v(0))<tol){
-            t << 1,0,0;
-            p = v.cross(t);
-        }else if (v(0)*v(1)*v(2)>0){
-            K = sqrt(3.0*pow(v(0),2)-2.0*v(0)+3);
-            if (v(0)>0){
-                tx = -sqrt(2.0)*v(1);
-                ty = -v(0)/sqrt(2);
-                tz = -v(0)/sqrt(2);
-            }else if (v(1)>0){
-                ty = -sqrt(2.0)*v(1);
-                tz = -v(0)/sqrt(2);
-                tx = -v(0)/sqrt(2);
-            }else{
-                tz = -sqrt(2.0)*v(1);
-                tx = -v(0)/sqrt(2);
-                ty = -v(0)/sqrt(2);
-            }
-            p << tx,ty,tz;
-        }else {
-            K = sqrt(3.0*pow(v(0),2)+2.0*v(0)+3);
-            if (v(0)<0){
-                tx = -sqrt(2.0)*v(1);
-                ty = -v(0)/sqrt(2);
-                tz = -v(0)/sqrt(2);
-            }else if (v(1)<0){
-                ty = -sqrt(2.0)*v(1);
-                tz = -v(0)/sqrt(2);
-                tx = -v(0)/sqrt(2);
-            }else{
-                tz = -sqrt(2.0)*v(1);
-                tx = -v(0)/sqrt(2);
-                ty = -v(0)/sqrt(2);
-            }
-            p << tx,ty,tz;
-        }
-    // }else if (abs(q(0)-q(1))<tol && abs(q(2))<tol){ // [110]
-    //     if (abs(v(0)-v(1))<tol && abs(v(2))<tol){
-    //         p << 0,0,1;
-    //     }else{
-    //         t << 1,1,0;
-    //         p = v.cross(t);
-    //     }
-    }else{
-        if (v(1)!=0){
-            p << -v(1), v(0), 0;
-        }else if (v(1)==0 && v(2)!=0){
-            p << v(2), 0, -v(0);
-        }else if (v(1)==0 && v(2)==0){
-            p << 0, 1, 0;
-        }
-    }
-
-    if (abs(v.dot(p))>tol){
-        std::cout << "check tangential vector"; abort();
-    }
-
-
-    p = p/p.norm()/sqrt(2);
-
-    return p;
-}
-
-
-
-
-// // return a perpendicular vector
-// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (abs(v(1))<1e-10 && abs(v(2))<1e-10){
-//         p << 0, 1, 1;
-//         p = p/p.norm();
-//     }else if (abs(v(1)-v(2))<1e-10){
-//         p << 1, -v(0)/(v(1)+v(2)), -v(0)/(v(1)+v(2));
-//         p = p/p.norm();
-//     }else if (abs(v(1)+v(2))<1e-10){
-//         p << 1, -v(0)/(v(1)-v(2)), v(0)/(v(1)-v(2));
-//         p = p/p.norm();
-//     }else if (v(2)!=0){
-//         p << 0, -v(2), v(1);
-//         p = p/p.norm();
-//     }else if (v(2)==0 && v(1)!=0){
-//         p << -v(1), v(0), 0;
-//         p = p/p.norm();
-//     }else if (v(1)==0 && v(2)==0){
-//         p << 0, 0, 1;
-//         p = p/p.norm();
-//     }
-//     return p;
-// }
-
-
-
-// Eigen::Vector3d perpvec(Eigen::Vector3d v){
-//     Eigen::Vector3d p;
-//     if (v(2)!=0){
-//         p << -v(2), 0, v(0);
-//         p = p/p.norm();
-//     }else if (v(2)==0 && v(1)!=0){
-//         p << v(1), -v(0), 0;
-//         p = p/p.norm();
-//     }else if (v(1)==0 && v(2)==0){
-//         p << 0, 1, 0;
-//         // p = p/p.norm();
-//     }
-//     return p;
-// }
-
-
-
-
-// // 2024.03.09 (100) direction
-// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
-//     v = v/v.norm(); // normalize
-//     Eigen::Vector3d p;
-//     double tx, ty, tz, K;
-//     if (v(1)==0 && v(2)==0){
-//         p << 0, 0, 1;
-//     }else {
-//         tx = 1;
-//         ty = -0.5/v(2)-0.5*v(0)/v(1);
-//         tz = 0.5/v(1)-0.5*v(0)/v(2);
-//         // if (v(0)>0){
-//         //     tx = 1;
-//         //     ty = -0.5/v(2)-0.5*v(0)/v(1);
-//         //     tz = 0.5/v(1)-0.5*v(0)/v(2);
-//         // }else{
-//         //     tx = -1;
-//         //     ty = 0.5/v(2)+0.5*v(0)/v(1);
-//         //     tz = -0.5/v(1)+0.5*v(0)/v(2);
-//         // }
-//         p << tx, ty, tz;
-//     }
-//     p = p/p.norm();
-//     // p = p.cross(v);
-//     return p;
-// }
-
-
-// // dirac delta function
-// inline std::complex<double> diracdelta(std::complex<double> x){
-//     std::complex<double> delta_x;
-//     if (DELTA) // lorentzian delta function
-//         delta_x = EPSILON/pi/(pow(EPSILON,2)+pow(x,2));
-//     else // gaussian delta function
-//         delta_x = exp(-x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(pi));
-// 	return delta_x;
-// }
-
-inline double diracdelta_lorentzian(double x){
-    return EPSILON/pi/(pow(EPSILON,2)+pow(x,2));
-}
-
-inline double diracdelta_gaussian(double x){
-    return exp(-x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(pi));
-}
 
 // kramers-kronig transformation
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
@@ -1394,13 +1077,324 @@ void chi_tensor_LF(env &dat){
     return;
 }
 
+
+
+
+// // Original?
+// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(1)!=0){
+//         p << -v(1), v(0), 0;
+//         p = p/p.norm();
+//     }else if (v(1)==0 && v(2)!=0){
+//         p << v(2), 0, -v(0);
+//         p = p/p.norm();
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 0, 1, 0;
+//         // p = p/p.norm();
+//     }
+//     return p;
+// }
+
+// G-X (100) direction!!!
+inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
+    Eigen::Vector3d p;
+    if (v(2)!=0){
+        p << 0, -v(2), v(1);
+    }else if (v(2)==0 && v(1)!=0){
+        p << -v(1), v(0), 0;
+    }else if (v(1)==0 && v(2)==0){
+        p << 0, 0, 1;
+    }
+    p = p/p.norm();
+    return p;
+}
+
+
+
+
+// // Original?
+// inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(1)!=0){
+//         p << -v(1), v(0), 0;
+//     }else if (v(1)==0 && v(2)!=0){
+//         p << v(2), 0, -v(0);
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 1, 0, 0;
+//     }
+//     p = p/p.norm();
+
+//     return p;
+// }
+
+
+inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
+    Eigen::Vector3d p;
+    if (v(2)!=0){
+        p << 0, -v(2), v(1);
+    }else if (v(2)==0 && v(1)!=0){
+        p << -v(1), v(0), 0;
+    }else if (v(1)==0 && v(2)==0){
+        p << 0, 0, 1;
+    }
+    p = p/p.norm();
+
+    return p;
+}
+
+
+
+// // y-axis
+// Eigen::Vector3d perpvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(2)!=0){
+//         p << v(2), 0, -v(0);
+//     }else if (v(2)==0 && v(1)!=0){
+//         p << -v(1), v(0), 0;
+//     }else if (v(2)==0 && v(1)==0){
+//         p << 0, 1, 0;
+//     }
+//     p = p/p.norm();
+//     return p;
+// }
+
+
+
+// normal vector
+Eigen::Vector3d normvec(Eigen::Vector3d v){
+    if (v.norm()==0){
+        v << 1.0, 0.0, 0.0;
+    }else{
+        v = v/v.norm();
+    }
+    return v;
+}
+
+
+// // tangential vector
+// Eigen::Vector3d tanvec(Eigen::Vector3d v, Eigen::Vector3d q){
+//     Eigen::Vector3d p;
+//     double tol = 1e-7;
+
+//     if (abs(q(1))<tol && abs(q(2))<tol){ // [100]
+//         if (v(2)!=0){
+//             p << 0, -v(2), v(1); 
+//         }else if (v(2)==0 && v(1)!=0){
+//             p << -v(1), v(0), 0;
+//         }else if (v(1)==0 && v(2)==0){
+//             p << 0, 0, 1;
+//         }
+//     }else if (abs(q(0)-q(1))<tol && abs(q(1)-q(2))<tol && abs(q(2)-q(0))<tol){ // [111]
+//         if (v(1)!=0){
+//             p << -v(1), v(0), 0;
+//         }else if (v(1)==0 && v(2)!=0){
+//             p << v(2), 0, -v(0);
+//         }else if (v(1)==0 && v(2)==0){
+//             p << 0, 1, 0;
+//         }
+//     }else if (abs(q(0)-q(1))<tol && abs(q(2))<tol){ // [110]
+//         if (v(1)!=0){
+//             p << -v(1), v(0), 0;
+//         }else if (v(1)==0 && v(2)!=0){
+//             p << v(2), 0, -v(0);
+//         }else if (v(1)==0 && v(2)==0){
+//             p << 0, 1, 0;
+//         }
+//     }else{
+//         if (v(1)!=0){
+//             p << -v(1), v(0), 0;
+//         }else if (v(1)==0 && v(2)!=0){
+//             p << v(2), 0, -v(0);
+//         }else if (v(1)==0 && v(2)==0){
+//             p << 0, 1, 0;
+//         }
+//     }
+//     p = p/p.norm();
+//     return p;
+// }
+
+// tangential vector
+Eigen::Vector3d tanvecq(Eigen::Vector3d v, Eigen::Vector3d q){
+    Eigen::Vector3d p;
+    Eigen::Vector3d t;
+    double tol = 1e-7;
+    double tx, ty, tz, K;
+
+    if (abs(q(1))<tol && abs(q(2))<tol){ // [100]
+        if (abs(v(1))<tol && abs(v(2))<tol){
+            p << 0,0,1;
+        }else{
+            // tx = -1;
+            // ty = 0.5/v(2)+0.5*v(0)/v(1);
+            // tz = -0.5/v(1)+0.5*v(0)/v(2);
+
+            tx = -(pow(v(1),2)+pow(v(2),2));
+            ty = v(1)*v(0);
+            tz = v(2)*v(0);
+
+
+            p << tx,ty,tz;
+            // if (v(2)<0) p = -p;
+
+            // if (v(2)>=0){
+            //     tx = 1;
+            //     ty = -0.5/v(2)-0.5*v(0)/v(1);
+            //     tz = 0.5/v(1)-0.5*v(0)/v(2);
+            // }else{
+            //     tx = -1;
+            //     ty = 0.5/v(2)-0.5*v(0)/v(1);
+            //     tz = -0.5/v(1)-0.5*v(0)/v(2);
+            // }
+            // p << tx,ty,tz;
+        }
+    }else if (abs(q(0)-q(1))<tol && abs(q(1)-q(2))<tol){ // [111]
+        if (abs(v(1)-v(2))<tol && abs(v(2)-v(0))<tol){
+            t << 1,0,0;
+            p = v.cross(t);
+        }else if (v(0)*v(1)*v(2)>0){
+            K = sqrt(3.0*pow(v(0),2)-2.0*v(0)+3);
+            if (v(0)>0){
+                tx = -sqrt(2.0)*v(1);
+                ty = -v(0)/sqrt(2);
+                tz = -v(0)/sqrt(2);
+            }else if (v(1)>0){
+                ty = -sqrt(2.0)*v(1);
+                tz = -v(0)/sqrt(2);
+                tx = -v(0)/sqrt(2);
+            }else{
+                tz = -sqrt(2.0)*v(1);
+                tx = -v(0)/sqrt(2);
+                ty = -v(0)/sqrt(2);
+            }
+            p << tx,ty,tz;
+        }else {
+            K = sqrt(3.0*pow(v(0),2)+2.0*v(0)+3);
+            if (v(0)<0){
+                tx = -sqrt(2.0)*v(1);
+                ty = -v(0)/sqrt(2);
+                tz = -v(0)/sqrt(2);
+            }else if (v(1)<0){
+                ty = -sqrt(2.0)*v(1);
+                tz = -v(0)/sqrt(2);
+                tx = -v(0)/sqrt(2);
+            }else{
+                tz = -sqrt(2.0)*v(1);
+                tx = -v(0)/sqrt(2);
+                ty = -v(0)/sqrt(2);
+            }
+            p << tx,ty,tz;
+        }
+    // }else if (abs(q(0)-q(1))<tol && abs(q(2))<tol){ // [110]
+    //     if (abs(v(0)-v(1))<tol && abs(v(2))<tol){
+    //         p << 0,0,1;
+    //     }else{
+    //         t << 1,1,0;
+    //         p = v.cross(t);
+    //     }
+    }else{
+        if (v(1)!=0){
+            p << -v(1), v(0), 0;
+        }else if (v(1)==0 && v(2)!=0){
+            p << v(2), 0, -v(0);
+        }else if (v(1)==0 && v(2)==0){
+            p << 0, 1, 0;
+        }
+    }
+
+    if (abs(v.dot(p))>tol){
+        std::cout << "check tangential vector"; abort();
+    }
+
+
+    p = p/p.norm()/sqrt(2);
+
+    return p;
+}
+
+
+
+
+// // return a perpendicular vector
+// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (abs(v(1))<1e-10 && abs(v(2))<1e-10){
+//         p << 0, 1, 1;
+//         p = p/p.norm();
+//     }else if (abs(v(1)-v(2))<1e-10){
+//         p << 1, -v(0)/(v(1)+v(2)), -v(0)/(v(1)+v(2));
+//         p = p/p.norm();
+//     }else if (abs(v(1)+v(2))<1e-10){
+//         p << 1, -v(0)/(v(1)-v(2)), v(0)/(v(1)-v(2));
+//         p = p/p.norm();
+//     }else if (v(2)!=0){
+//         p << 0, -v(2), v(1);
+//         p = p/p.norm();
+//     }else if (v(2)==0 && v(1)!=0){
+//         p << -v(1), v(0), 0;
+//         p = p/p.norm();
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 0, 0, 1;
+//         p = p/p.norm();
+//     }
+//     return p;
+// }
+
+
+
+// Eigen::Vector3d perpvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(2)!=0){
+//         p << -v(2), 0, v(0);
+//         p = p/p.norm();
+//     }else if (v(2)==0 && v(1)!=0){
+//         p << v(1), -v(0), 0;
+//         p = p/p.norm();
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 0, 1, 0;
+//         // p = p/p.norm();
+//     }
+//     return p;
+// }
+
+
+
+
+// // 2024.03.09 (100) direction
+// inline Eigen::Vector3d perpvec(Eigen::Vector3d v){
+//     v = v/v.norm(); // normalize
+//     Eigen::Vector3d p;
+//     double tx, ty, tz, K;
+//     if (v(1)==0 && v(2)==0){
+//         p << 0, 0, 1;
+//     }else {
+//         tx = 1;
+//         ty = -0.5/v(2)-0.5*v(0)/v(1);
+//         tz = 0.5/v(1)-0.5*v(0)/v(2);
+//         // if (v(0)>0){
+//         //     tx = 1;
+//         //     ty = -0.5/v(2)-0.5*v(0)/v(1);
+//         //     tz = 0.5/v(1)-0.5*v(0)/v(2);
+//         // }else{
+//         //     tx = -1;
+//         //     ty = 0.5/v(2)+0.5*v(0)/v(1);
+//         //     tz = -0.5/v(1)+0.5*v(0)/v(2);
+//         // }
+//         p << tx, ty, tz;
+//     }
+//     p = p/p.norm();
+//     // p = p.cross(v);
+//     return p;
+// }
+
+
 std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec){
     std::vector<Eigen::Vector3cd> uvec;
     uvec.reserve(3);
 
     // normal vector
     if (nvec.norm()==0)
-        uvec[0] << 0.0,0.0,1.0;
+        uvec[0] << 1.0,0.0,0.0;
     else
         uvec[0] = nvec/nvec.norm();
     
@@ -1409,10 +1403,12 @@ std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec){
     tvec = tanvec(nvec);
     pvec = nvec.cross(tvec);
 
-    std::complex<double> im = std::complex<double>(0.0,1.0);
+    // std::complex<double> im = std::complex<double>(0.0,1.0);
+    // uvec[1] = (tvec+im*pvec)/sqrt(2);
+    // uvec[2] = (tvec-im*pvec)/sqrt(2);
 
-    uvec[1] = (tvec+im*pvec)/sqrt(2);
-    uvec[2] = (tvec-im*pvec)/sqrt(2);
+    uvec[1] = tvec;
+    uvec[2] = pvec;
     return uvec;
 }
 
