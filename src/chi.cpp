@@ -934,9 +934,9 @@ void chi_tensor_LF(env &dat){
                                 std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
                                 for (int p=0; p<NPW; p++){
                                     oint_k_kq += conj(eigvector_k[k][v][p]) * C_kqgm[c][p] 
-                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2+dat.G[m]/2); // 
+                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2); // +dat.G[m]/2
                                     oint_kq_k += conj(C_kqgn[c][p]) * eigvector_k[k][v][p] 
-                                                                    * (dat.G[p]+K+Q/2+dat.G[n]/2).dot(uvec_n[j]); // 
+                                                                    * (dat.G[p]+K+Q/2).dot(uvec_n[j]); // +dat.G[n]/2
                                     // if (dat.loci[m][p]!=-1){
                                         
                                     // }
