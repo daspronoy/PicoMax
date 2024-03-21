@@ -16,6 +16,22 @@ inline double diracdelta_gaussian(double x){
     return exp(-x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(pi));
 }
 
+// kramers-kronig transformation
+void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
+    double ds = dw*2.0/pi;
+    #pragma omp parallel for
+    for (int f=0; f<NFREQ; f++){
+        double ReXf = 0.0;
+        for (int s=0; s<NFREQ; s++){
+            if (s!=f)
+                ReXf += w[s]*ImX[s]/(w[s]*w[s]-w[f]*w[f]);
+        }
+        ReX[f] = ds*ReXf;
+    }
+    return;
+}
+
+
 // Calculate lattice longitudinal and transverse permittivity matrix elements at G1, G2
 void permittivity(env &dat){
 
@@ -397,20 +413,6 @@ void permittivity(env &dat){
 
 
 
-// kramers-kronig transformation
-void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
-    double ds = dw*2.0/pi;
-    #pragma omp parallel for
-    for (int f=0; f<NFREQ; f++){
-        double ReXf = 0.0;
-        for (int s=0; s<NFREQ; s++){
-            if (s!=f)
-                ReXf += w[s]*ImX[s]/(w[s]*w[s]-w[f]*w[f]);
-        }
-        ReX[f] = ds*ReXf;
-    }
-    return;
-}
 
 
 // full susceptibility tensor
@@ -568,19 +570,20 @@ void chi_tensor(env &dat){
             // Eigen::Vector3cd p_qg_m, p_qg_n; // auxilary tangential vector, p_qg = n_qg.cross(t_qg);
 
             
-            std::vector<Eigen::Vector3d> uvec_m;
-            std::vector<Eigen::Vector3d> uvec_n;
-            uvec_m.reserve(3);
-            uvec_n.reserve(3);
+            // std::vector<Eigen::Vector3d> uvec_m;
+            // std::vector<Eigen::Vector3d> uvec_n;
+            // uvec_m.reserve(3);
+            // uvec_n.reserve(3);
             // overlap integrals
             for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
-                
-                uvec_m[0] = normvec(dat.G[m]+Q);
-                uvec_n[0] = normvec(dat.G[n]+Q);
-                uvec_m[1] = tanvec(uvec_m[0]);
-                uvec_n[1] = tanvec(uvec_n[0]);
-                uvec_m[2] = uvec_m[0].cross(uvec_m[1]);
-                uvec_n[2] = uvec_n[0].cross(uvec_n[1]);
+                std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.G[m]+Q);
+                std::vector<Eigen::Vector3cd> uvec_n = unitvec(dat.G[n]+Q);
+                // uvec_m[0] = normvec(dat.G[m]+Q);
+                // uvec_n[0] = normvec(dat.G[n]+Q);
+                // uvec_m[1] = tanvec(uvec_m[0]);
+                // uvec_n[1] = tanvec(uvec_n[0]);
+                // uvec_m[2] = uvec_m[0].cross(uvec_m[1]);
+                // uvec_n[2] = uvec_n[0].cross(uvec_n[1]);
 
                 // // test 000
                 // n_qg_m = normvec(dat.G[m]+Q);
@@ -635,8 +638,8 @@ void chi_tensor(env &dat){
                 #pragma omp parallel for //collapse(3)
                 for (int f=0; f<NFREQ; f++){
                     // temporary variables
-                    double tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-                    double tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+                    std::complex<double> tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+                    std::complex<double> tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
                     double depsilon = 0;
                     double realdL, imagdL, realdT, imagdT;
 
@@ -647,7 +650,7 @@ void chi_tensor(env &dat){
                             // imaginary part
                             for (int i=0; i<3; i++){
                                 for (int j=0; j<3; j++){
-                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]).real() 
+                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c])
                                                         * (*diracdelta)(depsilon-dat.freq[f]);
 
                                 }
@@ -655,7 +658,7 @@ void chi_tensor(env &dat){
                             if (dat.kk==0){
                                 for (int i=0; i<3; i++){
                                     for (int j=0; j<3; j++){
-                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]).real() 
+                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
                                                         / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
                                     }
                                 }
@@ -667,7 +670,7 @@ void chi_tensor(env &dat){
                     // permittivity
                     for (int i=0; i<3; i++){for (int j=0; j<3; j++){
                         if (dat.freq[f]>0){
-                            dat.imagepsij[i][j][q][m][n][f] = SCALEFACTOR * pi * tmpval_imag[i][j] / (dat.freq[f]*dat.freq[f]);
+                            dat.imagepsij[i][j][q][m][n][f] = SCALEFACTOR * pi * tmpval_imag[i][j].real() / (dat.freq[f]*dat.freq[f]);
                         }else{
                             dat.imagepsij[i][j][q][m][n][f] = 0;
                         }
@@ -675,7 +678,7 @@ void chi_tensor(env &dat){
                     }}
                     if (dat.kk==0){
                         for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-                            dat.realepsij[i][j][q][m][n][f] = SCALEFACTOR * 2 * tmpval_real[i][j];
+                            dat.realepsij[i][j][q][m][n][f] = SCALEFACTOR * 2 * tmpval_real[i][j].real();
                             // if (m==n && i==j) dat.realepsij[i][j][q][m][n][f] += 1;
                         }}
                     }
@@ -893,10 +896,10 @@ void chi_tensor_LF(env &dat){
                 }
             }
             
-            // std::vector<Eigen::Vector3d> uvec_m;
-            // std::vector<Eigen::Vector3d> uvec_n;
-            // uvec_m.reserve(3);
-            // uvec_n.reserve(3);
+            std::vector<Eigen::Vector3d> uvec_m;
+            std::vector<Eigen::Vector3d> uvec_n;
+            uvec_m.reserve(3);
+            uvec_n.reserve(3);
 
             
             // overlap integrals
@@ -910,7 +913,7 @@ void chi_tensor_LF(env &dat){
                         C_kqgm[n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j); // from behind
                     }
                 }
-                std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.G[m]+Q);
+                // std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.G[m]+Q);
 
 
                 for (int n=0; n<=m; n++){
@@ -923,8 +926,13 @@ void chi_tensor_LF(env &dat){
                             C_kqgn[n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j); // from behind
                         }
                     }
-                    
-                    std::vector<Eigen::Vector3cd> uvec_n = unitvec(dat.G[n]+Q);
+                    uvec_m[0] = normvec(dat.G[m]+Q);
+                    uvec_n[0] = normvec(dat.G[n]+Q);
+                    uvec_m[1] = tanvec(uvec_m[0]);
+                    uvec_n[1] = tanvec(uvec_n[0]);
+                    uvec_m[2] = uvec_m[0].cross(uvec_m[1]);
+                    uvec_n[2] = uvec_n[0].cross(uvec_n[1]);
+                    // std::vector<Eigen::Vector3cd> uvec_n = unitvec(dat.G[n]+Q);
 
                     for (int i=0; i<3; i++){for (int j=0; j<3; j++){
                         for (int v=0; v<NBAND_V[k]; v++){ // valence bands
@@ -934,11 +942,11 @@ void chi_tensor_LF(env &dat){
                                 std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
                                 for (int p=0; p<NPW; p++){
                                     oint_k_kq += conj(eigvector_k[k][v][p]) * C_kqgm[c][p] 
-                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2+dat.G[m]/2); // 
+                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2); // +dat.G[m]/2
                                     oint_kq_k += conj(C_kqgn[c][p]) * eigvector_k[k][v][p] 
-                                                                    * (dat.G[p]+K+Q/2+dat.G[n]/2).dot(uvec_n[j]); // 
+                                                                    * (dat.G[p]+K+Q/2).dot(uvec_n[j]); // +dat.G[n]/2
                                 }
-                                oint[i][j][k][m][n][v][c] = (oint_k_kq * oint_kq_k).real();
+                                oint[i][j][k][m][n][v][c] = oint_k_kq * oint_kq_k;
                             }
                         }
                     }}
@@ -952,10 +960,9 @@ void chi_tensor_LF(env &dat){
                 #pragma omp parallel for //collapse(3)
                 for (int f=0; f<NFREQ; f++){
                     // temporary variables
-                    double tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-                    double tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+                    std::complex<double> tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+                    std::complex<double> tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
                     double depsilon = 0; // E_{k+q,c}-E_{k,v}
-                    double realdL, imagdL, realdT, imagdT;
 
                     // sum over k-grids & bands
                     for (int k=0; k<NKPT; k++){
@@ -964,14 +971,14 @@ void chi_tensor_LF(env &dat){
                             // imaginary part
                             for (int i=0; i<3; i++){
                                 for (int j=0; j<3; j++){
-                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]).real() 
+                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
                                                         * (*diracdelta)(depsilon-dat.freq[f]);
                                 }
                             }
                             if (dat.kk==0){
                                 for (int i=0; i<3; i++){
                                     for (int j=0; j<3; j++){
-                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]).real() 
+                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
                                                         / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
                                     }
                                 }
@@ -983,14 +990,14 @@ void chi_tensor_LF(env &dat){
                     // permittivity
                     for (int i=0; i<3; i++){for (int j=0; j<3; j++){
                         if (dat.freq[f]>0){
-                            dat.imagepsij[i][j][q][m][n][f] = SCALEFACTOR * pi * tmpval_imag[i][j] / (dat.freq[f]*dat.freq[f]);
+                            dat.imagepsij[i][j][q][m][n][f] = SCALEFACTOR * pi * tmpval_imag[i][j].real() / (dat.freq[f]*dat.freq[f]);
                         }else{
                             dat.imagepsij[i][j][q][m][n][f] = 0;
                         }
                     }}
                     if (dat.kk==0){
                         for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-                            dat.realepsij[i][j][q][m][n][f] = SCALEFACTOR * 2 * tmpval_real[i][j];
+                            dat.realepsij[i][j][q][m][n][f] = SCALEFACTOR * 2 * tmpval_real[i][j].real();
                             // if (m==n && i==j) dat.realepsij[i][j][q][m][n][f] += 1;
                         }}
                     }
@@ -1113,7 +1120,7 @@ inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
     }else if (v(1)==0 && v(2)!=0){
         p << v(2), 0, -v(0);
     }else if (v(1)==0 && v(2)==0){
-        p << 1, 0, 0;
+        p << 0, 1, 0;
     }
     p = p/p.norm();
 
@@ -1128,7 +1135,7 @@ inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
 //     }else if (v(2)==0 && v(1)!=0){
 //         p << -v(1), v(0), 0;
 //     }else if (v(1)==0 && v(2)==0){
-//         p << 0, 0, 1;
+//         p << 0, -1, 0;
 //     }
 //     p = p/p.norm();
 

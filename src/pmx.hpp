@@ -104,7 +104,7 @@ struct env {
     std::vector<Eigen::Vector3d> Q;// q-vector grids [2*pi/a]
     std::vector<int> qnum;// number of q-vectors in each path
     std::vector<std::string> qpath;// path of q-vector
-    Eigen::Vector3d gammazero = {1e-6,0,0}; // shift for the gamma-point to avoid singularity
+    Eigen::Vector3d gammazero = {0,0,0}; // shift for the gamma-point to avoid singularity
 
     // material parameter
     std::vector<double> epm;// empirical pseudopotential parameters [rydberg] {vs3,vs8,vs11,va3,va4,va11,a0,b0,A2,rl0,rl2}

@@ -24,9 +24,9 @@
 
 -----
 
-**************************************
-***PicoMax 0.1 progress output file***
-**************************************
+*********************************
+***PicoMax 0.1 progress output***
+*********************************
 Date
 PicoMax 0.1 starting
 The output filename is ...
