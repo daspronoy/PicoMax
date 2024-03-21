@@ -772,17 +772,18 @@ void chi_tensor_LF(env &dat){
     double SCALEFACTOR = 128.0*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
 
     
-    std::complex<double> ***eigvector_k; // eigenvector at k
-    double **eigvalue_k; // eigenvalue at k
-    std::complex<double> ***eigvector_kq; // eigenvector at k+q
-    double **eigvalue_kq; // eigenvalue at k
+    std::complex<double> ***C_k; // eigenvector at k
+    double **E_k; // eigenvalue at k
+    // std::complex<double> ***eigvector_kq; // eigenvector at k+q
+    // double **eigvalue_kq; // eigenvalue at k
 
 
     
 
     int NBAND_V [NKPT]; // number of valence bands
     int NBAND_C [NKPT]; // number of conduction bands
-
+    
+    
 
 
 
@@ -813,8 +814,8 @@ void chi_tensor_LF(env &dat){
     }
 
     //======================================================================
-    eigvalue_k = new double *[NKPT];
-    eigvector_k = new std::complex<double> **[NKPT];
+    E_k = new double *[NKPT];
+    C_k = new std::complex<double> **[NKPT];
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
         // vector{k}
@@ -827,19 +828,19 @@ void chi_tensor_LF(env &dat){
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
         if (eigsolver_k.info() != Eigen::Success){ printf("ERROR: Eigensolver failed to solve the matrix."); abort(); }
 
-        eigvalue_k[k] = new double [NBAND];
+        E_k[k] = new double [NBAND];
         for (int n=0; n<NBAND; n++){
-            eigvalue_k[k][n] = eigsolver_k.eigenvalues()(n)-dat.energyoffset;
-            if (eigvalue_k[k][n] > 0) {
+            E_k[k][n] = eigsolver_k.eigenvalues()(n)-dat.energyoffset;
+            if (E_k[k][n] > 0) {
                 NBAND_V[k] = n;
                 break;
             }
         }
-        eigvector_k[k] = new std::complex<double> *[NBAND_V[k]];
+        C_k[k] = new std::complex<double> *[NBAND_V[k]];
         for (int n=0; n<NBAND_V[k]; n++){
-            eigvector_k[k][n] = new std::complex<double> [NPW];
+            C_k[k][n] = new std::complex<double> [NPW];
             for (int j=0; j<NPW; j++){
-                eigvector_k[k][n][j] = eigsolver_k.eigenvectors().col(n)(j);
+                C_k[k][n][j] = eigsolver_k.eigenvectors().col(n)(j);
             }
         }
     }
@@ -867,11 +868,24 @@ void chi_tensor_LF(env &dat){
         }
     }
 
-    eigvalue_kq = new double *[NKPT];
-    eigvector_kq = new std::complex<double> **[NKPT];
+    // initialize E_kqm [NKPT x NEPS x NPW]
+    double ***E_kqm;
+    E_kqm = new double **[NKPT];
     for (int k=0; k<NKPT; k++){
-        eigvalue_kq[k] = new double [NBAND];
+        E_kqm[k] = new double *[NEPS];
+        for (int m=0; m<NEPS; m++){
+            E_kqm[k][m] = new double [NBAND];
+        }
     }
+    int NBAND_CB [NKPT]; // number of conduction bands
+
+
+
+    // eigvalue_kq = new double *[NKPT];
+    // eigvector_kq = new std::complex<double> **[NKPT];
+    // for (int k=0; k<NKPT; k++){
+    //     eigvalue_kq[k] = new double [NBAND];
+    // }
     for (int q=0; q<NQ; q++){
         Eigen::Vector3d Q = dat.Q[q];
         #pragma omp parallel for
@@ -879,72 +893,82 @@ void chi_tensor_LF(env &dat){
             
             // vector{k}
             Eigen::Vector3d K = {dat.K[k][0], dat.K[k][1], dat.K[k][2]};
-            Eigen::MatrixXcd H = HamiltonianEPM(dat.G,K+Q,dat.epm);
-            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-            for (int n=0; n<NBAND; n++){
-                eigvalue_kq[k][n] = double(eigsolver_kq.eigenvalues()(NBAND-1-n))-dat.energyoffset;
-                if (eigvalue_kq[k][n] <=0) {
-                    NBAND_C[k] = n;
-                    break;
-                }
-            }
-            eigvector_kq[k] = new std::complex<double> *[NBAND_C[k]];
-            for (int n=0; n<NBAND_C[k]; n++){
-                eigvector_kq[k][n] = new std::complex<double> [NPW];
-                for (int j=0; j<NPW; j++){
-                    eigvector_kq[k][n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j);
-                }
-            }
-            
-            std::vector<Eigen::Vector3d> uvec_m;
-            std::vector<Eigen::Vector3d> uvec_n;
-            uvec_m.reserve(3);
-            uvec_n.reserve(3);
 
-            
-            // overlap integrals
+            std::complex<double> C_kqgm [NEPS][NBAND][NPW];
             for (int m=0; m<NEPS; m++){
-                // K+Q+Gm
-                H = HamiltonianEPM(dat.G,K+Q+dat.G[m],dat.epm);
+                Eigen::MatrixXcd H = HamiltonianEPM(dat.G,K+Q+dat.G[m],dat.epm);
                 Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-                std::complex<double> C_kqgm [NBAND_C[k]][NPW];
-                for (int n=0; n<NBAND_C[k]; n++){
-                    for (int j=0; j<NPW; j++){
-                        C_kqgm[n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j); // from behind
-                    }
-                }
-                // std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.G[m]+Q);
-
-
-                for (int n=0; n<=m; n++){
-                    // K+Q+Gn
-                    H = HamiltonianEPM(dat.G,K+Q+dat.G[n],dat.epm);
-                    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-                    std::complex<double> C_kqgn [NBAND_C[k]][NPW];
-                    for (int n=0; n<NBAND_C[k]; n++){
-                        for (int j=0; j<NPW; j++){
-                            C_kqgn[n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j); // from behind
+                for (int b=0; b<NBAND; b++){
+                    E_kqm[k][m][b] = double(eigsolver_kq.eigenvalues()(NBAND-1-b))-dat.energyoffset;
+                    if (m==0){
+                        if (E_kqm[k][m][b]<=0){
+                            NBAND_CB[k] = b;
+                            break;
                         }
                     }
-                    uvec_m[0] = normvec(dat.G[m]+Q);
-                    uvec_n[0] = normvec(dat.G[n]+Q);
-                    uvec_m[1] = tanvec(uvec_m[0]);
-                    uvec_n[1] = tanvec(uvec_n[0]);
-                    uvec_m[2] = uvec_m[0].cross(uvec_m[1]);
-                    uvec_n[2] = uvec_n[0].cross(uvec_n[1]);
-                    // std::vector<Eigen::Vector3cd> uvec_n = unitvec(dat.G[n]+Q);
+                    
+                }
+                
+                for (int n=0; n<NBAND_CB[k]; n++){
+                    for (int j=0; j<NPW; j++){
+                        C_kqgm[m][n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j); // from behind
+                    }
+                }
+            }
+
+
+
+
+
+
+
+
+
+            // Eigen::MatrixXcd H = HamiltonianEPM(dat.G,K+Q,dat.epm);
+            // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
+            // for (int n=0; n<NBAND; n++){
+            //     eigvalue_kq[k][n] = double(eigsolver_kq.eigenvalues()(NBAND-1-n))-dat.energyoffset;
+            //     if (eigvalue_kq[k][n] <=0) {
+            //         NBAND_C[k] = n;
+            //         break;
+            //     }
+            // }
+            // eigvector_kq[k] = new std::complex<double> *[NBAND_C[k]];
+            // for (int n=0; n<NBAND_C[k]; n++){
+            //     eigvector_kq[k][n] = new std::complex<double> [NPW];
+            //     for (int j=0; j<NPW; j++){
+            //         eigvector_kq[k][n][j] = eigsolver_kq.eigenvectors().col(NBAND-1-n)(j);
+            //     }
+            // }
+            
+            // std::vector<Eigen::Vector3d> uvec_m;
+            // std::vector<Eigen::Vector3d> uvec_n;
+            // uvec_m.reserve(3);
+            // uvec_n.reserve(3);
+
+            // overlap integrals
+            for (int m=0; m<NEPS; m++){
+                for (int n=0; n<=m; n++){
+                    // uvec_m[0] = normvec(dat.G[m]+Q);
+                    // uvec_n[0] = normvec(dat.G[n]+Q);
+                    // uvec_m[1] = tanvec(uvec_m[0]);
+                    // uvec_n[1] = tanvec(uvec_n[0]);
+                    // uvec_m[2] = uvec_m[0].cross(uvec_m[1]);
+                    // uvec_n[2] = uvec_n[0].cross(uvec_n[1]);
+                    std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.G[m]+Q);
+                    std::vector<Eigen::Vector3cd> uvec_n = unitvec(dat.G[n]+Q);
 
                     for (int i=0; i<3; i++){for (int j=0; j<3; j++){
                         for (int v=0; v<NBAND_V[k]; v++){ // valence bands
-                            oint[i][j][k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-                            for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
+                            oint[i][j][k][m][n][v] = new std::complex<double> [NBAND_CB[k]];
+                            for (int c=0; c<NBAND_CB[k]; c++){ // conduction bands
                                 std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
                                 std::complex<double> oint_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
                                 for (int p=0; p<NPW; p++){
-                                    oint_k_kq += conj(eigvector_k[k][v][p]) * C_kqgm[c][p] 
-                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2); // +dat.G[m]/2
-                                    oint_kq_k += conj(C_kqgn[c][p]) * eigvector_k[k][v][p] 
-                                                                    * (dat.G[p]+K+Q/2).dot(uvec_n[j]); // +dat.G[n]/2
+                                    oint_k_kq += conj(C_k[k][v][p]) * C_kqgm[m][c][p] 
+                                                                    * uvec_m[i].dot(dat.G[p]+K+Q/2+dat.G[m]/2); // 
+                                    oint_kq_k += conj(C_kqgm[n][c][p]) * C_k[k][v][p] 
+                                                                    * (dat.G[p]+K+Q/2+dat.G[n]/2).dot(uvec_n[j]); // 
                                 }
                                 oint[i][j][k][m][n][v][c] = oint_k_kq * oint_kq_k;
                             }
@@ -966,22 +990,18 @@ void chi_tensor_LF(env &dat){
 
                     // sum over k-grids & bands
                     for (int k=0; k<NKPT; k++){
-                        for (int v=0; v<NBAND_V[k]; v++){ for (int c=0; c<NBAND_C[k]; c++){
-                            depsilon = eigvalue_kq[k][c]-eigvalue_k[k][v];
+                        for (int v=0; v<NBAND_V[k]; v++){ for (int c=0; c<NBAND_CB[k]; c++){
+                            depsilon = E_kqm[k][m][c]-E_k[k][v];
                             // imaginary part
-                            for (int i=0; i<3; i++){
-                                for (int j=0; j<3; j++){
-                                    tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
-                                                        * (*diracdelta)(depsilon-dat.freq[f]);
-                                }
-                            }
+                            for (int i=0; i<3; i++){for (int j=0; j<3; j++){
+                                tmpval_imag[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
+                                                    * (*diracdelta)(depsilon-dat.freq[f]);
+                            }}
                             if (dat.kk==0){
-                                for (int i=0; i<3; i++){
-                                    for (int j=0; j<3; j++){
-                                        tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
-                                                        / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
-                                    }
-                                }
+                                for (int i=0; i<3; i++){for (int j=0; j<3; j++){
+                                    tmpval_real[i][j] += dat.KW[k] * (oint[i][j][k][m][n][v][c]) 
+                                                    / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
+                                }}
                             }
                         }}
                     }
@@ -1036,9 +1056,9 @@ void chi_tensor_LF(env &dat){
         }}
         for (int k=0; k<NKPT; k++){
             for (int m=0; m<NBAND_C[k]; m++){
-                delete [] eigvector_kq[k][m];
+                // delete [] eigvector_kq[k][m];
             }
-            delete [] eigvector_kq[k];
+            // delete [] eigvector_kq[k];
         }
     }// loop q
 
@@ -1062,16 +1082,16 @@ void chi_tensor_LF(env &dat){
 
     for (int k=0; k<NKPT; k++){
         for (int m=0; m<NBAND_V[k]; m++){
-            delete [] eigvector_k[k][m];
+            delete [] C_k[k][m];
         }
-        delete [] eigvector_k[k];
-        delete [] eigvalue_k[k];
-        delete [] eigvalue_kq[k];
+        delete [] C_k[k];
+        delete [] E_k[k];
+        // delete [] eigvalue_kq[k];
     }
-    delete [] eigvalue_k;
-    delete [] eigvalue_kq;
-    delete [] eigvector_k;
-    delete [] eigvector_kq;
+    delete [] E_k;
+    // delete [] eigvalue_kq;
+    delete [] C_k;
+    // delete [] eigvector_kq;
 
     return;
 }
@@ -1135,7 +1155,7 @@ inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
 //     }else if (v(2)==0 && v(1)!=0){
 //         p << -v(1), v(0), 0;
 //     }else if (v(1)==0 && v(2)==0){
-//         p << 0, -1, 0;
+//         p << 0, 0, 1;
 //     }
 //     p = p/p.norm();
 
@@ -1145,7 +1165,7 @@ inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
 
 
 // // y-axis
-// Eigen::Vector3d perpvec(Eigen::Vector3d v){
+// Eigen::Vector3d tanvec(Eigen::Vector3d v){
 //     Eigen::Vector3d p;
 //     if (v(2)!=0){
 //         p << v(2), 0, -v(0);
@@ -1155,6 +1175,25 @@ inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
 //         p << 0, 1, 0;
 //     }
 //     p = p/p.norm();
+//     return p;
+// }
+
+
+// // test
+// inline Eigen::Vector3d tanvec(Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     double tx,ty,tz;
+//     if (v(2)==0 && v(2)==0){
+//         p << 0,1,0;
+//     }else{
+//         tx = -(pow(v(1),2)+pow(v(2),2));
+//         ty = v(1)*v(0);
+//         tz = v(2)*v(0);
+//         p << tx,ty,tz;
+//         if (v(2)<0) p = -p;
+//     }
+//     p = p/p.norm();
+
 //     return p;
 // }
 
@@ -1306,7 +1345,7 @@ Eigen::Vector3d tanvecq(Eigen::Vector3d v, Eigen::Vector3d q){
     }
 
 
-    p = p/p.norm()/sqrt(2);
+    p = p/p.norm();
 
     return p;
 }
@@ -1392,22 +1431,30 @@ std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec){
     uvec.reserve(3);
 
     // normal vector
-    if (nvec.norm()==0)
-        uvec[0] << 1.0,0.0,0.0;
-    else
-        uvec[0] = nvec/nvec.norm();
+    if (nvec.norm()==0){
+        nvec << 1.0,0.0,0.0;
+        uvec[0] = nvec;
+    }else{
+        nvec = nvec/nvec.norm();
+        uvec[0] = nvec;
+    }
     
     // tangential vectors
     Eigen::Vector3d tvec, pvec;
     tvec = tanvec(nvec);
     pvec = nvec.cross(tvec);
 
-    std::complex<double> im = std::complex<double>(0.0,1.0);
-    uvec[1] = (tvec+im*pvec)/sqrt(2);
-    uvec[2] = (tvec-im*pvec)/sqrt(2);
+    // std::complex<double> im = std::complex<double>(0.0,1.0);
+    // uvec[1] = (tvec+im*pvec)/sqrt(2);
+    // uvec[2] = (tvec-im*pvec)/sqrt(2);
 
-    // uvec[1] = tvec;
-    // uvec[2] = pvec;
+    // double tol = 1e-10;
+    // if (abs(nvec.dot(tvec))>tol || abs(nvec.dot(pvec))>tol){
+    //     std::cout << "unnormal vector";
+    //     abort();
+    // }
+    uvec[1] = tvec;
+    uvec[2] = pvec;
     return uvec;
 }
 
