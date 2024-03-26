@@ -345,6 +345,35 @@ void printInput(env &dat){
     return;
 }
 
+
+// get total system memory size
+int get_memtotal(){
+    std::string token;
+    std::ifstream file("/proc/meminfo");
+    while(file >> token) {
+        if(token == "MemTotal:") {
+            int mem;
+            if(file >> mem) {
+                return mem;
+            } else {
+                return 0;
+            }
+        }
+        // Ignore the rest of the line
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+    return 0; // Nothing found
+}
+
+
+
+
+
+
+
+
+
+
 // print electronic bandstructure to stdout
 void printBand(env &dat){
     for(int q=0; q<NQ; q++){

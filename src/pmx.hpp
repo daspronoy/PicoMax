@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 // #define EIGEN_USE_MKL_ALL
-
+#include <thread>
 
 
 /*
@@ -242,7 +242,7 @@ void printBand(env &dat);
 void printEpsilon(env &dat);
 void writeEpsilon(env &dat);
 void writeEpsilon_tensor(env &dat);
-
+int get_memtotal();
 
 // basis.cpp
 void generate_planewaves (env &dat);
@@ -276,8 +276,9 @@ inline double diracdelta_gaussian(double x);
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw);
 void chi_tensor(env &dat);
 void chi_tensor_LF(env &dat);
+void chi_tensor_LF2(env &dat);
 std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec);
-
+std::vector<Eigen::Vector3cd> unitvecq (Eigen::Vector3d nvec, Eigen::Vector3d qvec);
 
 } /* namespace pmx */
 #endif /* PMX_H_ */

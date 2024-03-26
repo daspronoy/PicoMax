@@ -10,14 +10,18 @@ parse(p,varargin{:})
 p = p.Results;
 
 
+
+
 % generate plane-wave-grids
-gvec = picomax.kpoint.pwgrid_fcc(o.num.GCUT);
+KCON = 3.809982111485962;
+GCUT = sqrt(o.num.encut/KCON)/(2*pi/o.sys.a);
+gvec = picomax.kpoint.pwgrid_fcc(GCUT);
 gvec = gvec.'; % g [3 x NPW]
 NPW = size(gvec,2);
 
 % generate q-vectors
 picomax.qvector.generate(o);
-qvec = o.num.QVEC; % q [3 x NQ]
+qvec = o.num.qvec; % q [3 x NQ]
 NQ = size(qvec,2);
 [~,qg] = min(sum(abs(qvec).^2,1)); % find gamma point index
 
@@ -30,7 +34,7 @@ end
 % D1 [NPW x NQ] eigenvalues
 
 % sort bands and truncate to NBAND
-NBAND = min([NPW o.num.NBAND]);
+NBAND = min([NPW o.num.nband]);
 if p.sort
     [V1,D1] = picomax.util.eigenshuffle(H);
     [~,idx] = sort(D1(:,qg));

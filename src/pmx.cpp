@@ -29,7 +29,9 @@ int main (int argc, char **argv) {
     pmx::inputProcess(inp, dat);
     // check parameters before proceeding calculations
 
-
+    // const auto proc_count = std::thread::hardware_concurrency();
+    int proc_count = omp_get_num_procs();
+    int memtotal = pmx::get_memtotal();
     std::cout   << "*********************************\n"
                 << "***PicoMax 0.1 progress output***\n"
                 << "*********************************\n"
@@ -37,16 +39,17 @@ int main (int argc, char **argv) {
                 << "PicoMax " << dat.version << " starting\n"
                 << "The output file is " << dat.outputfile << std::endl
                 << "Running on...\n"
-                << "Available memory:...\n"
+                << "Using " << proc_count << " cores\n"
+                << "Available memory: " << memtotal << "kB\n"
                 << "---------------------------------\n"
                 << "Parameters:\n"
-                << "encut=" << dat.encut << " eV" << std::endl
-                << "gcut=" << dat.gcut << std::endl
-                << "nchi=" << NEPS << std::endl
-                << "nband=" << NBAND << std::endl
-                << "nfreq=" << NFREQ << std::endl
-                << "dfreq=" << dat.dfreq << std::endl
-                << "....\n";
+                << "  encut = " << dat.encut << " eV" << std::endl
+                << "  gcut = " << dat.gcut << std::endl
+                << "  nchi = " << NEPS << std::endl
+                << "  nband = " << NBAND << std::endl
+                << "  nfreq = " << NFREQ << std::endl
+                << "  dfreq = " << dat.dfreq << std::endl
+                << "---------------------------------\n";
 
 
 
@@ -58,8 +61,8 @@ int main (int argc, char **argv) {
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
     std::cout   << "Generated G-vectors\n"
-                << "Number of planewaves: " << NPW << std::endl
-                << "Elapsed time: " << elapsed_time.count() << " s\n";
+                << "  Number of planewaves: " << NPW << std::endl
+                << "  Elapsed time: " << elapsed_time.count() << " s\n";
 
 
     // construct kpoint (k-vector grids) (not required for bandstructure calculation)
@@ -70,19 +73,19 @@ int main (int argc, char **argv) {
     }else if (dat.kpoint==1){ // generate full BZ
         pmx::genkpoint_monkhorst_pack(dat);
         std::cout << "Generated K-vectors (Full BZ)\n";
-        std::cout << "Simulation size in kpoint: " << dat.kpointorder << std::endl;
+        std::cout << "  Simulation size in kpoint: " << dat.kpointorder << std::endl;
     }else if (dat.kpoint==2){ // generate Monkhorst-Pack grids
         std::cout << "Generated K-vectors (Monkhorst-Pack grids)\n";
-        std::cout << "Simulation size in kpoint: " << dat.kpointorder << std::endl;
+        std::cout << "  Simulation size in kpoint: " << dat.kpointorder << std::endl;
     }else if (dat.kpoint==3){ // generate Cohen-Chadi grids
         pmx::genkpoint_cohen_chadi(dat);
         std::cout << "Generated K-vectors\n";
-        std::cout << "Cohen-Chadi grids with order: " << dat.kpointorder << std::endl;
+        std::cout << "  Using Cohen-Chadi grids with order: " << dat.kpointorder << std::endl;
     }
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
-    std::cout   << "Number of K-vectors: " << NKPT << std::endl
-                << "Elapsed time: " << elapsed_time.count() << " s\n";
+    std::cout   << "  Number of K-vectors: " << NKPT << std::endl
+                << "  Elapsed time: " << elapsed_time.count() << " s\n";
 
     //------------------------------------------
     // print out input parameter (for debugging purposes)
@@ -100,7 +103,7 @@ int main (int argc, char **argv) {
         pmx::empiricalpseudopotentialmethod(dat);
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
 
         // export bandstructure results
         pmx::printBand(dat);
@@ -124,7 +127,7 @@ int main (int argc, char **argv) {
 
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
     }
     
     if(inp.existOption("-switch") 
@@ -136,14 +139,14 @@ int main (int argc, char **argv) {
         pmx::setRefEnergy(dat);
 
         // permittivity calculation
-        pmx::chi_tensor_LF(dat);
+        pmx::chi_tensor_LF2(dat);
 
         // pmx::printEpsilon(dat);
         pmx::writeEpsilon_tensor(dat);
 
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
     }
 
     return 0;
