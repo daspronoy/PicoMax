@@ -13,13 +13,13 @@ int main (int argc, char **argv) {
     pmx::inputParser inp(argc, argv);
 
     // help
-    if(inp.existOption("-h") || inp.existOption("-help")){
+    if (inp.existOption("-h") || inp.existOption("-help")){
         pmx::doc();
         return 0;
     }
 
     // version
-    if(inp.existOption("-v") || inp.existOption("-version")){
+    if (inp.existOption("-v") || inp.existOption("-version")){
         pmx::ver();
         return 0;
     }
@@ -41,10 +41,10 @@ int main (int argc, char **argv) {
                 << "PicoMax v" << dat.version << "\n"
                 << "  Running on " << cpumodel << "\n"
                 << "  Using " << proc_count << " cores\n"
-                << "  Total memory: " << memtotal << " kB\n"
-                << "  Available memory: " << memfree << " kB\n"
-                << "  The working dir: " << dat.wdir << "\n"
-                << "  The output file: " << dat.outputfile << ".dat\n"
+                << "  Total memory: " << (memtotal/1000) << " MB\n"
+                << "  Avail memory: " << (memfree/1000) << " MB\n"
+                << "  Working dir: " << dat.wdir << "\n"
+                << "  Output file: " << dat.outputfile << ".dat\n"
                 << "---------------------------------\n"
                 << "Parameters:\n"
                 << "  encut = " << dat.encut << " eV" << "\n"
@@ -53,6 +53,7 @@ int main (int argc, char **argv) {
                 << "  nband = " << NBAND << "\n"
                 << "  nfreq = " << NFREQ << "\n"
                 << "  dfreq = " << dat.dfreq << "\n"
+                << "  epsilon = " << dat.epsilon << "\n"
                 << "---------------------------------" << std::endl;
 
 
@@ -94,14 +95,14 @@ int main (int argc, char **argv) {
 
     //------------------------------------------
     // print out input parameter (for debugging purposes)
-    if(dat.debug>1){
+    if (dat.debug>1){
         pmx::printInput(dat);
         return 0;
     }
 
     //------------------------------------------
     // electronic bandstructure calculation
-    if(inp.existOption("-switch") 
+    if (inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="band")){
         std::cout << "Electronic bandstructure solver" << std::endl;
         time_0 = std::chrono::system_clock::now();
@@ -116,7 +117,7 @@ int main (int argc, char **argv) {
 
     //------------------------------------------
     // permittivity calculation
-    if(inp.existOption("-switch") 
+    if (inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="eps")){
         std::cout << "Susceptibility matrix solver" << std::endl;
         time_0 = std::chrono::system_clock::now();
@@ -135,7 +136,7 @@ int main (int argc, char **argv) {
         std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
     }
     
-    if(inp.existOption("-switch") 
+    if (inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="epsij")){
         std::cout << "Susceptibility tensor matrix solver" << std::endl;
         time_0 = std::chrono::system_clock::now();

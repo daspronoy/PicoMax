@@ -7,18 +7,28 @@
     picomax ... -output 1 -filename .../output.dat
 * add encut arg
     picomax ... -encut 100 ...
-
-
+* hardware output
+* 
 
 ## Todo:
-* add KPOINT command input arg
-    picomax ... -kpoint 100,100,0,0,0,1,0,0,1,1,...
-* add input parameter pattern file?
-    picomax ... -inputfile .../inputparam.txt
 * add logfile output
     picomax ... -logfile true? (check other software languages)
-* add 
 * linearize (m,n) dimensions
+* progress output
+* hdf5 output support (this will be important for reusing results)
+* 
+
+
+
+
+
+
+
+
+
+
+
+
 
 #### progress output file example
 
@@ -76,20 +86,22 @@ Total wall time: * s
 
 ## Appendix A. Sample scripts
 
-#### PicoMax script
----
-#picomax_cmd.sh
+#### Sample script for running picomax calculations
+```
+#runscript.sh
 #!/bin/bash
-outputfile=filename
 
+outputfile=filename
 picomax_exe=
 wdir=
 
 
----
+```
 
-#### Slurm script
----
+
+#### Sample script for slurm submission
+
+```
 #slurm_cmd.sh
 #!/bin/bash
 #SBATCH --partition=hcpu
@@ -97,35 +109,55 @@ wdir=
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task 48 
 #SBATCH --exclusive
-#SBATCH --job-name=filename
-#SBATCH --output=%x.log
-#SBATCH --error=%x.log
-outputfile=%x
-wdir=
-picomax_exe=
-kpointfile=
+#SBATCH --job-name=picomax
+#SBATCH --output=%x_%j.log
+#SBATCH --error=%x_%j.log
+
+outputfile=pmx20240328_si_freq
+wdir=/home/mjh92/picomax/picomax/demo
+picomax_exe=/home/mjh92/project/picomax/src/picomax
+kpointfile=/home/mjh92/project/picomax/include/kpoint/KPOINT_11x11x11.txt
+nband=30
+nchi=9
+encut=400
+nfreq=1001
+dfreq=0.05
+kk=1
+delta=0
+epsilon=0.3
+qnum=20,20,10,10,20
+qpath=L,G,X,W,K,G
+a=4.35
+epm=
+
 srun --unbuffered\
     ${picomax_exe} -switch epsij\
     -outputfile ${outputfile} -wdir ${wdir}\
-    -nband 20 -neps 9 -encut 400\
-    -a 4.35 -epm \
+    -nband ${nband} -neps ${nchi} -encut ${encut}\
+    -a ${a} -epm ${epm}\
     -kpoint 0 -kpointfile ${kpointfile}\
-    -nfreq 1 -dfreq 0.05 -kk 0 -delta 0 -epsilon 0.3\
-    -qnum 10,10,5,5,10 -qpath L,G,X,W,K,G
----
+    -nfreq ${nfreq} -dfreq ${dfreq} -kk ${kk} -delta ${delta} -epsilon ${epsilon}\
+    -qnum ${qnum} -qpath ${qpath}\
+    >> ${outputfile}.log
+```
 
-#### dd
----
+#### Print out picomax version
+
+```
 ./picomax -v
----
+```
 
----
+#### Print out picomax doc
+
+```
 ./picomax -h
----
+```
 
----
+#### Print out picomax inputs (for debugging purposes)
+
+```
 ./picomax -debug 1 ... # dry-run??
----
+```
 
 
 
