@@ -253,6 +253,8 @@ void genkpoint_cohen_chadi (env &dat);
 inline bool kroneckerDelta(int m, int n);
 void genkpoint_monkhorst_pack (env &dat);
 void importkpointfile (env &dat);
+void gen_G_fcc_f (env &dat);
+
 
 // epm.cpp
 void empiricalpseudopotentialmethod(env &dat);
@@ -279,6 +281,6 @@ void chi_tensor_LF(env &dat);
 void chi_tensor_LF2(env &dat);
 std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec);
 std::vector<Eigen::Vector3cd> unitvecq (Eigen::Vector3d nvec, Eigen::Vector3d qvec);
-
+Eigen::Vector3cd **uvecqm (Eigen::Vector3d Q, std::vector<Eigen::Vector3d> G);
 } /* namespace pmx */
 #endif /* PMX_H_ */

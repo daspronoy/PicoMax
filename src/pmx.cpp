@@ -58,6 +58,7 @@ int main (int argc, char **argv) {
     // generate g-vector grids
     time_0 = std::chrono::system_clock::now();
     pmx::generate_planewaves(dat);
+    // pmx::gen_G_fcc_f(dat);
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
     std::cout   << "Generated G-vectors\n"

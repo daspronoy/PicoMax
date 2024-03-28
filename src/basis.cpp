@@ -9,7 +9,25 @@
 #include "pmx.hpp"
 
 namespace pmx{
-// generate plane waves G
+
+// generate plane waves G for fcc in rectangular fractional coordinate
+void gen_G_fcc_f (env &dat){
+    int N = 2;
+    NPW = pow(2*N+1,3);
+    dat.G.reserve(NPW);
+
+    Eigen::Vector3d b1, b2, b3;
+    b1 << -1.0,1.0,1.0;
+    b2 << 1.0,-1.0,1.0;
+    b3 << 1.0,1.0,-1.0;
+
+    for (int h=-N; h<N; h++){ for (int k=-N; k<N; k++){ for (int l=-N; l<N; l++){
+        dat.G.push_back(h*b1+k*b2+l*b3);
+    }}}
+    return;
+}
+
+// generate plane waves G for fcc in spherical...
 void generate_planewaves (env &dat){
     std::vector<int> g2 {0,3,4,8,11,12,16,19,20,24,27,32,35,36,40,43,44,48,51,52,56,59,64,67,68,72,75,76,80,83,84,88,91,96,99,100};
     std::vector<int> nnn {1,8,6,12,24,8,6,24,24,24,32,12,48,30,24,24,24,8,48,24,48,72,6,24,48,36,56,24,24,72,48,24,48,24,72,30};
@@ -41,6 +59,7 @@ void generate_planewaves (env &dat){
     }
     #pragma omp barrier
 
+    // find local-field index
     find_locGi(dat);
 
     return;

@@ -1106,13 +1106,6 @@ void chi_tensor_LF2(env &dat){
     // initialize E_kqm [NKPT x NEPS x NPW]
     int NBAND_CB [NKPT]; // number of conduction bands
     double E_kq [NKPT][NBAND]; // energy at (k+q+g_m,c)
-    // double **E_kqm; // energy at (k+q+g_m,c)
-    // E_kqm = new double *[NKPT];
-    // for (int k=0; k<NKPT; k++){
-    //     E_kqm[k] = new double [NBAND];
-    // }
-    
-
     for (int q=0; q<NQ; q++){
         Eigen::Vector3d Q = dat.Q[q];
 
@@ -1140,22 +1133,31 @@ void chi_tensor_LF2(env &dat){
                 }
             }// loop over c
 
+            // tangential vectors
+            Eigen::Vector3cd **uvec_m = uvecqm(Q,dat.G);
+
             // get the overlap integrals
             for (int m=0; m<NEPS; m++){
-                std::vector<Eigen::Vector3cd> uvec_m = unitvec(Q-dat.G[m]);
+                // std::vector<Eigen::Vector3cd> uvec_m = unitvec(Q-dat.G[m]);
+                // std::vector<Eigen::Vector3cd> uvec_m = unitvecq(Q-dat.G[m],Q);
                 for (int i=0; i<3; i++){
                     for (int v=0; v<NBAND_V[k]; v++){ // valence bands
                         oint[k][i][m][v] = new std::complex<double> [NBAND_CB[k]];
                         for (int c=0; c<NBAND_CB[k]; c++){ // conduction bands
                             std::complex<double> oint_k_kq = 0.0; // <k+g_m,v|e^{-i*(q-g_m)}j_0|k+q,c> * u_{q+g_m}
                             for (int p=0; p<NPW; p++){
-                                oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[i]);
+                                // oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[i]);
+                                oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[m][i]);
+                                // if (dat.loci[m][p]!=-1){
+                                //     oint_k_kq += conj(C_k[k][0][v][dat.loci[m][p]]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[m][i]);
+                                // }
                             }// loop over p
                             oint[k][i][m][v][c] = oint_k_kq;
                         }// loop over c
                     }// loop over v
                 }// loop over i
             }// loop over m
+            
         }// loop over k (parallel)
         #pragma omp barrier
 
@@ -1600,17 +1602,17 @@ std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec){
     tvec = tanvec(nvec);
     pvec = nvec.cross(tvec);
 
-    // std::complex<double> im = std::complex<double>(0.0,1.0);
-    // uvec[1] = (tvec+im*pvec)/sqrt(2);
-    // uvec[2] = (tvec-im*pvec)/sqrt(2);
+    std::complex<double> im = std::complex<double>(0.0,1.0);
+    uvec[1] = (tvec+im*pvec)/sqrt(2);
+    uvec[2] = (tvec-im*pvec)/sqrt(2);
 
     // double tol = 1e-10;
     // if (abs(nvec.dot(tvec))>tol || abs(nvec.dot(pvec))>tol){
     //     std::cout << "unnormal vector";
     //     abort();
     // }
-    uvec[1] = tvec;
-    uvec[2] = pvec;
+    // uvec[1] = tvec;
+    // uvec[2] = pvec;
     return uvec;
 }
 
@@ -1644,6 +1646,153 @@ std::vector<Eigen::Vector3cd> unitvecq (Eigen::Vector3d nvec, Eigen::Vector3d qv
     // }
     // uvec[1] = tvec;
     // uvec[2] = pvec;
+    return uvec;
+}
+
+Eigen::Vector3cd **uvecqm (Eigen::Vector3d Q, std::vector<Eigen::Vector3d> G){
+    Eigen::Vector3cd **uvec;
+    uvec = new Eigen::Vector3cd *[NEPS];
+    for (int m=0; m<NEPS; m++) uvec[m] = new Eigen::Vector3cd [3];
+    
+    // normal vector
+    for (int m=0; m<NEPS; m++){
+        uvec[m][0] << Q-G[m];
+        if (uvec[m][0].norm()==0){
+            uvec[m][0] << 1.0,0.0,0.0;
+        }else{
+            uvec[m][0] /= uvec[m][0].norm(); // normalize
+        }
+    }
+
+    // tangential vectors
+    double tol = 1e-8;
+    double tx, ty, tz, K;
+    double s;
+    if (abs(Q(1))<tol && abs(Q(2))<tol){ // [100]
+        for (int m=0; m<NEPS; m++){
+            if (abs(uvec[m][0](1))<tol && abs(uvec[m][0](2))<tol){
+                uvec[m][1] << 0,1,0;
+            }else{
+                uvec[m][1](0) = -(pow(uvec[m][0](1),2)+pow(uvec[m][0](2),2));
+                uvec[m][1](1) = uvec[m][0](1)*uvec[m][0](0);
+                uvec[m][1](2) = uvec[m][0](2)*uvec[m][0](0);
+                uvec[m][1] /= uvec[m][1].norm(); // normalize
+            }
+        }
+    }else if (abs(Q(0)-Q(1))<tol && abs(Q(1)-Q(2))<tol){ // [111]
+        for (int m=0; m<NEPS; m++){
+            if (m==0){
+                uvec[m][1] << 0.0,-1.0,1.0;
+                uvec[m][1] /= uvec[m][1].norm();
+            }else if (m==1){
+                uvec[m][1] << 1.0,0.0,-1.0;
+                uvec[m][1] /= uvec[m][1].norm();
+            }else if (m==8){
+                uvec[m][1] << -1.0,1.0,0.0;
+                uvec[m][1] /= uvec[m][1].norm();
+            }else{
+                Eigen::Vector3d v = uvec[m][0].real();
+                if (v(0)*v(1)*v(2)>0){
+                    K = sqrt(3.0*pow(Q(0),2)-2.0*Q(0)+3);
+                    if (v(0)>0){
+                        tx = -(Q(0)-1)/K;
+                        ty = (Q(0)+1+K)/2/K;
+                        tz = (Q(0)+1-K)/2/K;
+                    }else if (v(1)>0){
+                        ty = -(Q(0)-1)/K;
+                        tz = (Q(0)+1+K)/2/K;
+                        tx = (Q(0)+1-K)/2/K;
+                    }else{
+                        tz = -(Q(0)-1)/K;
+                        tx = (Q(0)+1+K)/2/K;
+                        ty = (Q(0)+1-K)/2/K;
+                    }
+                    uvec[m][1] << tx,ty,tz;
+                    uvec[m][1] /= uvec[m][1].norm();
+                }else {
+                    K = sqrt(3.0*pow(Q(0),2)+2.0*Q(0)+3);
+                    if (v(0)<0){
+                        tx = (Q(0)+1)/K;
+                        ty = -(Q(0)-1+K)/2/K;
+                        tz = (-Q(0)+1+K)/2/K;
+                    }else if (v(1)<0){
+                        ty = (Q(0)+1)/K;
+                        tz = -(Q(0)-1+K)/2/K;
+                        tx = (-Q(0)+1+K)/2/K;
+                    }else{
+                        tz = (Q(0)+1)/K;
+                        tx = -(Q(0)-1+K)/2/K;
+                        ty = (-Q(0)+1+K)/2/K;
+                    }
+                    uvec[m][1] << tx,ty,tz;
+                    uvec[m][1] /= uvec[m][1].norm();
+                }
+            }
+        }
+    }else if (abs(Q(1)-Q(2))<tol && abs(Q(3)<tol)){// [110]
+        for (int m=0; m<NEPS; m++){
+            Eigen::Vector3d v = uvec[m][0].real();
+            if (m==0){
+                uvec[m][1] << 0.0,0.0,1.0;
+            }else if (m==1 || m==2 || m==7 || m==8){
+                s = G[m](0)*G[m](1)*G[m](2);
+                tx = s/2+s*v(2)/2;
+                ty = -s/2+s*v(2)/2;
+                tz = -s*v(0);
+                uvec[m][1] << tx,ty,tz;
+            }else if (m==4 || m==6){
+                s = G[m](0)*G[m](1)*G[m](2);
+                K = sqrt(2*pow(Q(0),2)+3);
+                tx = -s*(4*Q(0)*Q(0)+s*3*Q(0)+3-3*(Q(0)+s)*K);
+                ty = s*(4*Q(0)*Q(0)-s*3*Q(0)+3-3*(Q(0)-s)*K);
+                tz = s*2*(Q(0)*Q(0)+3);
+                uvec[m][1] << tx,ty,tz;
+            }else{
+                s = G[m](0)*G[m](1)*G[m](2);
+                K = sqrt(2*pow(Q(0),2)+3);
+                tx = s*(4*Q(0)*Q(0)-s*3*Q(0)+3+3*(Q(0)+s)*K);
+                ty = -s*(4*Q(0)*Q(0)+s*3*Q(0)+3+3*(Q(0)-s)*K);
+                tz = s*2*(Q(0)*Q(0)+3);
+                uvec[m][1] << tx,ty,tz;
+            }
+        }
+    }else{
+        for (int m=0; m<NEPS; m++){
+            Eigen::Vector3d T;
+            T << 0.0,0.0,1.0;
+            uvec[m][1] = uvec[m][0].cross(T);
+        }
+    }
+
+    //
+    Eigen::Vector3cd t,p;
+    std::complex<double> im = std::complex<double>(0.0,1.0);
+    for (int m=0; m<NEPS; m++){
+        uvec[m][1] /= uvec[m][1].norm();
+        uvec[m][2] = uvec[m][0].cross(uvec[m][1]);
+
+        t = uvec[m][1];
+        p = uvec[m][2];
+        uvec[m][1] = (t+im*p)/sqrt(2);
+        uvec[m][2] = (t-im*p)/sqrt(2);
+    }
+
+
+
+    for (int m=0; m<NEPS; m++){
+        if (abs(uvec[m][0].dot(uvec[m][1]))>tol){
+            std::cout << "Warning::not normal found\n" << Q << "-" << m << std::endl;
+            std::cout << uvec[m][0] << std::endl;
+            std::cout << uvec[m][1] << std::endl;
+            abort();
+        }
+        if (abs(uvec[m][0].dot(uvec[m][2]))>tol){
+            std::cout << "not normal-" << Q << "-" << m << std::endl;
+            std::cout << uvec[m][0] << std::endl;
+            std::cout << uvec[m][2] << std::endl;
+            abort();
+        }
+    }
     return uvec;
 }
 
