@@ -240,12 +240,3 @@ srun --unbuffered\
 * Probing correlated states with plasmons
 
 
-
-
-
-
-
-
-## GIT terminal commands:
-git commit -a -m "message"
-git push
