@@ -347,12 +347,31 @@ void printInput(env &dat){
 
 
 // get total system memory size
-int get_memtotal(){
+unsigned int getMEMtotal(){
     std::string token;
     std::ifstream file("/proc/meminfo");
     while(file >> token) {
         if(token == "MemTotal:") {
-            int mem;
+            unsigned int mem;
+            if(file >> mem) {
+                return mem;
+            } else {
+                return 0;
+            }
+        }
+        // Ignore the rest of the line
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+    return 0; // Nothing found
+}
+
+// get free system memory size
+unsigned int getMEMfree(){
+    std::string token;
+    std::ifstream file("/proc/meminfo");
+    while(file >> token) {
+        if(token == "MemFree:") {
+            unsigned int mem;
             if(file >> mem) {
                 return mem;
             } else {
@@ -366,10 +385,21 @@ int get_memtotal(){
 }
 
 
-
-
-
-
+// get cpu model name
+std::string getCPUmodel(){
+    std::string token, cpumodel;
+    std::ifstream file("/proc/cpuinfo");
+    while (std::getline(file, cpumodel)) {
+        if (cpumodel.substr(0, strlen("Processor")) == "Processor" 
+                || cpumodel.substr(0,strlen("model name")) == "model name") {
+            cpumodel = std::regex_replace(cpumodel, std::regex("\\model name\t: "), "");
+            return cpumodel;
+        }
+        // Ignore the rest of the line
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+    return 0; // Nothing found
+}
 
 
 

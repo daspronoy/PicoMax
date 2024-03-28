@@ -27,29 +27,33 @@ int main (int argc, char **argv) {
     // parameters
     pmx::env dat;
     pmx::inputProcess(inp, dat);
-    // check parameters before proceeding calculations
 
-    // const auto proc_count = std::thread::hardware_concurrency();
+    // check parameters before proceeding calculations
+    unsigned int memtotal = pmx::getMEMtotal();
+    unsigned int memfree = pmx::getMEMfree();
+    std::string cpumodel = pmx::getCPUmodel();
     int proc_count = omp_get_num_procs();
-    int memtotal = pmx::get_memtotal();
+
     std::cout   << "*********************************\n"
                 << "***PicoMax 0.1 progress output***\n"
                 << "*********************************\n"
                 << std::ctime(&datetime_init)
-                << "PicoMax " << dat.version << " starting\n"
-                << "The output file is " << dat.outputfile << std::endl
-                << "Running on...\n"
-                << "Using " << proc_count << " cores\n"
-                << "Available memory: " << memtotal << "kB\n"
+                << "PicoMax v" << dat.version << "\n"
+                << "  Running on " << cpumodel << "\n"
+                << "  Using " << proc_count << " cores\n"
+                << "  Total memory: " << memtotal << " kB\n"
+                << "  Available memory: " << memfree << " kB\n"
+                << "  The working dir: " << dat.wdir << "\n"
+                << "  The output file: " << dat.outputfile << ".dat\n"
                 << "---------------------------------\n"
                 << "Parameters:\n"
-                << "  encut = " << dat.encut << " eV" << std::endl
-                << "  gcut = " << dat.gcut << std::endl
-                << "  nchi = " << NEPS << std::endl
-                << "  nband = " << NBAND << std::endl
-                << "  nfreq = " << NFREQ << std::endl
-                << "  dfreq = " << dat.dfreq << std::endl
-                << "---------------------------------\n";
+                << "  encut = " << dat.encut << " eV" << "\n"
+                << "  gcut = " << dat.gcut << "\n"
+                << "  nchi = " << NEPS << "\n"
+                << "  nband = " << NBAND << "\n"
+                << "  nfreq = " << NFREQ << "\n"
+                << "  dfreq = " << dat.dfreq << "\n"
+                << "---------------------------------" << std::endl;
 
 
 
@@ -62,8 +66,8 @@ int main (int argc, char **argv) {
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
     std::cout   << "Generated G-vectors\n"
-                << "  Number of planewaves: " << NPW << std::endl
-                << "  Elapsed time: " << elapsed_time.count() << " s\n";
+                << "  Number of planewaves: " << NPW << "\n"
+                << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
 
     // construct kpoint (k-vector grids) (not required for bandstructure calculation)
@@ -85,8 +89,8 @@ int main (int argc, char **argv) {
     }
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
-    std::cout   << "  Number of K-vectors: " << NKPT << std::endl
-                << "  Elapsed time: " << elapsed_time.count() << " s\n";
+    std::cout   << "  Number of K-vectors: " << NKPT << "\n"
+                << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
     //------------------------------------------
     // print out input parameter (for debugging purposes)
@@ -99,12 +103,12 @@ int main (int argc, char **argv) {
     // electronic bandstructure calculation
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="band")){
-        std::cout << "Electronic bandstructure solver\n";
+        std::cout << "Electronic bandstructure solver" << std::endl;
         time_0 = std::chrono::system_clock::now();
         pmx::empiricalpseudopotentialmethod(dat);
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
         // export bandstructure results
         pmx::printBand(dat);
@@ -114,7 +118,7 @@ int main (int argc, char **argv) {
     // permittivity calculation
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="eps")){
-        std::cout << "Susceptibility matrix solver\n";
+        std::cout << "Susceptibility matrix solver" << std::endl;
         time_0 = std::chrono::system_clock::now();
 
         // obtain reference energy level
@@ -128,12 +132,12 @@ int main (int argc, char **argv) {
 
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
     }
     
     if(inp.existOption("-switch") 
         && (inp.valueOption("-switch")=="epsij")){
-        std::cout << "Susceptibility tensor matrix solver\n";
+        std::cout << "Susceptibility tensor matrix solver" << std::endl;
         time_0 = std::chrono::system_clock::now();
 
         // obtain reference energy level
@@ -147,7 +151,7 @@ int main (int argc, char **argv) {
 
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
-        std::cout << "  Elapsed time: " << elapsed_time.count() << " s\n";
+        std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
     }
 
     return 0;

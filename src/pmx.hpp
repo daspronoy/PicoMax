@@ -242,7 +242,9 @@ void printBand(env &dat);
 void printEpsilon(env &dat);
 void writeEpsilon(env &dat);
 void writeEpsilon_tensor(env &dat);
-int get_memtotal();
+unsigned int getMEMtotal();
+unsigned int getMEMfree();
+std::string getCPUmodel();
 
 // basis.cpp
 void generate_planewaves (env &dat);

@@ -1059,7 +1059,7 @@ void chi_tensor_LF2(env &dat){
         C_k[k] = new std::complex<double> **[NEPS];
     }// loop over k
 
-    std::cout << "  Solving for |k,v>...\n";
+    std::cout << "  Solving for |k,v>..." << std::endl;
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
         // vector{k}
@@ -1104,11 +1104,11 @@ void chi_tensor_LF2(env &dat){
         }
     }
 
-    std::cout << "  Solving for susceptibility tensor matrix elements...\n";
+    std::cout << "  Solving for susceptibility tensor matrix elements..." << std::endl;
     int NBAND_CB [NKPT]; // number of conduction bands
     double E_kq [NKPT][NBAND]; // energy at (k+q+g_m,c)
     for (int q=0; q<NQ; q++){
-        std::cout << "  (" << (q+1) << "/" << NQ << ")...\n"; // (q/NQ)
+        std::cout << "  (" << (q+1) << "/" << NQ << ")..." << std::endl; // (q/NQ)
         Eigen::Vector3d Q = dat.Q[q];
 
         // construct overlap integrals
