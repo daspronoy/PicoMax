@@ -1059,6 +1059,7 @@ void chi_tensor_LF2(env &dat){
         C_k[k] = new std::complex<double> **[NEPS];
     }// loop over k
 
+    std::cout << "  Solving for |k,v>...\n";
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
         // vector{k}
@@ -1103,10 +1104,11 @@ void chi_tensor_LF2(env &dat){
         }
     }
 
-    // initialize E_kqm [NKPT x NEPS x NPW]
+    std::cout << "  Solving for susceptibility tensor matrix elements...\n";
     int NBAND_CB [NKPT]; // number of conduction bands
     double E_kq [NKPT][NBAND]; // energy at (k+q+g_m,c)
     for (int q=0; q<NQ; q++){
+        std::cout << "  (" << (q+1) << "/" << NQ << ")...\n"; // (q/NQ)
         Eigen::Vector3d Q = dat.Q[q];
 
         // construct overlap integrals
@@ -1134,11 +1136,11 @@ void chi_tensor_LF2(env &dat){
             }// loop over c
 
             // tangential vectors
-            Eigen::Vector3cd **uvec_m = uvecqm(Q,dat.G);
+            // Eigen::Vector3cd **uvec_m = uvecqm(Q,dat.G);
 
             // get the overlap integrals
             for (int m=0; m<NEPS; m++){
-                // std::vector<Eigen::Vector3cd> uvec_m = unitvec(Q-dat.G[m]);
+                std::vector<Eigen::Vector3cd> uvec_m = unitvec(Q-dat.G[m]);
                 // std::vector<Eigen::Vector3cd> uvec_m = unitvecq(Q-dat.G[m],Q);
                 for (int i=0; i<3; i++){
                     for (int v=0; v<NBAND_V[k]; v++){ // valence bands
@@ -1146,8 +1148,8 @@ void chi_tensor_LF2(env &dat){
                         for (int c=0; c<NBAND_CB[k]; c++){ // conduction bands
                             std::complex<double> oint_k_kq = 0.0; // <k+g_m,v|e^{-i*(q-g_m)}j_0|k+q,c> * u_{q+g_m}
                             for (int p=0; p<NPW; p++){
-                                // oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[i]);
-                                oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[m][i]);
+                                oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[i]);
+                                // oint_k_kq += conj(C_k[k][m][v][p]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[m][i]);
                                 // if (dat.loci[m][p]!=-1){
                                 //     oint_k_kq += conj(C_k[k][0][v][dat.loci[m][p]]) * C_kq[c][p] * (dat.G[p]+K+Q/2+dat.G[m]/2).dot(uvec_m[m][i]);
                                 // }
