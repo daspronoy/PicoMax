@@ -53,13 +53,25 @@ int main (int argc, char **argv) {
                 << "  nband = " << NBAND << "\n"
                 << "  nfreq = " << NFREQ << "\n"
                 << "  dfreq = " << dat.dfreq << "\n"
-                << "  epsilon = " << dat.epsilon << "\n"
+                << "  epsilon = " << EPSILON << "\n"
                 << "---------------------------------" << std::endl;
 
 
 
     //------------------------------------------
-    
+    // q-vectors
+    std::cout   << "Generated Q-vector\n"
+                << "  Path: ";
+    for (std::string i: dat.qpath)
+        std::cout << i << ",";
+    std::cout   << "\n"
+                << "  Qnum: ";
+    for (int i: dat.qnum)
+        std::cout << i << ",";
+    std::cout   << "\n"
+                << "  Total number: " << NQ << std::endl;
+
+
     // generate g-vector grids
     time_0 = std::chrono::system_clock::now();
     pmx::generate_planewaves(dat);
@@ -145,7 +157,7 @@ int main (int argc, char **argv) {
         pmx::setRefEnergy(dat);
 
         // permittivity calculation
-        pmx::chi_tensor_LF2(dat);
+        pmx::chi_tensor(dat);
 
         // pmx::printEpsilon(dat);
         pmx::writeEpsilon_tensor(dat);

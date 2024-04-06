@@ -97,7 +97,7 @@ struct env {
     double *freq;// frequency [eV]
     double dfreq = 0;// frequency interval [eV]
     int kk = 0;// use kramers-kronig transformation to obtain the real parts of dielectric constant
-    double epsilon = 0.05; // delta function epsilon
+    // double epsilon = 0.05; // delta function epsilon
     // int delta = 0; // delta function model; 0: lorentzian, 1: gaussian
 
     // q-vector
@@ -281,6 +281,7 @@ void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw);
 void chi_tensor(env &dat);
 void chi_tensor_LF(env &dat);
 void chi_tensor_LF2(env &dat);
+void chi_tensor_LF3(env &dat);
 std::vector<Eigen::Vector3cd> unitvec (Eigen::Vector3d nvec);
 std::vector<Eigen::Vector3cd> unitvecq (Eigen::Vector3d nvec, Eigen::Vector3d qvec);
 Eigen::Vector3cd **uvecqm (Eigen::Vector3d Q, std::vector<Eigen::Vector3d> G);

@@ -1,12 +1,13 @@
 function [epsmn] = enforcesym(epsmn,Q)
 tol = 1e-7;
-if abs(Q(1)-Q(2))<tol ... [111] direction (G-L)
+
+if abs(Q(2))<tol ... [100] direction (G-X)
+        && abs(Q(3))<tol
+    epsmn = enforcesym_100(epsmn);
+elseif abs(Q(1)-Q(2))<tol ... [111] direction (G-L)
         && abs(Q(2)-Q(3))<tol ...
         && abs(Q(3)-Q(1))<tol
     epsmn = enforcesym_111(epsmn);
-elseif abs(Q(2))<tol ... [100] direction (G-X)
-        && abs(Q(3))<tol
-    epsmn = enforcesym_100(epsmn);
 elseif abs(Q(1)-Q(2))<tol ... [110] direction (G-K)
         && abs(Q(3))<tol
     epsmn = enforcesym_110(epsmn);

@@ -92,7 +92,14 @@ std::vector<Eigen::Vector3d> find_G (int g2, int n){
     return G;
 }
 
-// find local-field index
+/*
+    find local-field index i, such that Gi=Gp+Gm
+
+    idx_offset [NEPS x NPW]
+
+    index p: planewave summation index
+    Gm: offset wavevector (local-field effect)
+*/ 
 void find_locGi (env &dat){
 
     // initialize
@@ -102,27 +109,27 @@ void find_locGi (env &dat){
     }
 
     // g(0)
-    for (int i=0; i<NPW; i++){
-        dat.loci[0][i] = i;
+    for (int p=0; p<NPW; p++){
+        dat.loci[0][p] = p;
     }
     #pragma omp parallel for
     for (int m=1; m<NEPS; m++){
 
         // local-field vector Gm
         Eigen::Vector3d Gm = dat.G[m];
-        for (int i=0; i<NPW; i++){
-            // bra vector Gi
-            Eigen::Vector3d Gi = dat.G[i];
+        for (int p=0; p<NPW; p++){
+            // bra vector Gp
+            Eigen::Vector3d Gp = dat.G[p];
 
             // if no such vector found, -1
-            dat.loci[m][i] = -1;
-            for (int j=0; j<NPW; j++){
-                // ket vector Gj
-                Eigen::Vector3d Gj = dat.G[j];
+            dat.loci[m][p] = -1;
+            for (int i=0; i<NPW; i++){
+                // ket vector Gi
+                Eigen::Vector3d Gi = dat.G[i];
 
-                // find j, such that Gi = Gj-Gm
-                if ((Gi-Gj+Gm).norm()<1e-10){
-                    dat.loci[m][i] = j;
+                // find i, such that Gi = Gp+Gm
+                if ((Gp-Gi+Gm).norm()<1e-10){
+                    dat.loci[m][p] = i;
                     break;
                 }
             }
@@ -148,76 +155,64 @@ void genkpoint_cohen_chadi (env &dat) {
     
     //2-point Cohen and Chadi scheme: Phys. Rev. B 8, 5757 (1973).
     if (N==1){
-        // 0 point
         dat.KW[0] = 0.7500; dat.K[0][0] = 0.75; dat.K[0][1] = 0.25; dat.K[0][2] = 0.25;
-        // 1 point
         dat.KW[1] = 0.2500; dat.K[1][0] = 0.25; dat.K[1][1] = 0.25; dat.K[1][2] = 0.25;
     }
 
     //10-point Cohen and Chadi scheme: Phys. Rev. B 8, 5757 (1973).
     else if (N==2){
-        // 0 point
         dat.KW[0] = 0.18750; dat.K[0][0] = 0.875; dat.K[0][1] = 0.375; dat.K[0][2] = 0.125;
-        // 1 point
         dat.KW[1] = 0.09375; dat.K[1][0] = 0.875; dat.K[1][1] = 0.125; dat.K[1][2] = 0.125;
-        // 2 point
         dat.KW[2] = 0.09375; dat.K[2][0] = 0.625; dat.K[2][1] = 0.625; dat.K[2][2] = 0.125;
-        // 3 point
         dat.KW[3] = 0.09375; dat.K[3][0] = 0.625; dat.K[3][1] = 0.375; dat.K[3][2] = 0.375;
-        // 4 point
         dat.KW[4] = 0.18750; dat.K[4][0] = 0.625; dat.K[4][1] = 0.375; dat.K[4][2] = 0.125;
-        // 5 point
         dat.KW[5] = 0.09375; dat.K[5][0] = 0.625; dat.K[5][1] = 0.125; dat.K[5][2] = 0.125;
-        // 6 point
         dat.KW[6] = 0.03125; dat.K[6][0] = 0.375; dat.K[6][1] = 0.375; dat.K[6][2] = 0.375;
-        // 7 point
         dat.KW[7] = 0.09375; dat.K[7][0] = 0.375; dat.K[7][1] = 0.375; dat.K[7][2] = 0.125;
-        // 8 point
         dat.KW[8] = 0.09375; dat.K[8][0] = 0.375; dat.K[8][1] = 0.125; dat.K[8][2] = 0.125;
-        // 9 point
         dat.KW[9] = 0.03125; dat.K[9][0] = 0.125; dat.K[9][1] = 0.125; dat.K[9][2] = 0.125;
     }
 
     //Higher-order Cohen and Chadi scheme: PHILOSOPHICAL MAGAZINE B 81, NO. 6, 551--559 (2001).
     else if (N>2){
         k = 0;
-        for (i=1; i<=pow(2,N-1); i++)	for (j =1; j<=i; j++)	for (l=1; l<=j; l++){
+        for (i=1; i<=pow(2,N-1); i++) for (j=1; j<=i; j++) for (l=1; l<=j; l++){
             //std::cout << "Loop 1\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }	
-        for (i=pow(2,N-1)+2; i<=pow(2,N); i+=2)	for (j=1; j<=3*pow(2,N-2)-int(i*0.5); j++)	for (l=1; l<=j; l++){
+        for (i=pow(2,N-1)+2; i<=pow(2,N); i+=2) for (j=1; j<=3*pow(2,N-2)-int(i*0.5); j++) for (l=1; l<=j; l++){
             //std::cout << "Loop 2\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }	
-        for (i=pow(2,N-1)+2; i<=3*pow(2,N-2); i+=2)	for (j=3*pow(2,N-2)-int(i*0.5)+1; j<=i; j++)	for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
+        for (i=pow(2,N-1)+2; i<=3*pow(2,N-2); i+=2) for (j=3*pow(2,N-2)-int(i*0.5)+1; j<=i; j++) for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
             //std::cout << "Loop 3\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }
-        for (i=3*pow(2,N-2)+2; i<=pow(2,N); i+=2)	for (j=3*pow(2,N-2)-int(i*0.5)+1; j<=3*pow(2,N-1)-i; j++)	for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
+        for (i=3*pow(2,N-2)+2; i<=pow(2,N); i+=2) for (j=3*pow(2,N-2)-int(i*0.5)+1; j<=3*pow(2,N-1)-i; j++) for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
             //std::cout << "Loop 4\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }
-        for (i=pow(2,N-1)+1; i<=pow(2,N)-1; i+=2)	for (j=1; j<=3*pow(2,N-2)-int((i-1)*0.5); j++)	for (l=1; l<=j; l++){
+        for (i=pow(2,N-1)+1; i<=pow(2,N)-1; i+=2) for (j=1; j<=3*pow(2,N-2)-int((i-1)*0.5); j++) for (l=1; l<=j; l++){
             //std::cout << "Loop 5\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }
-        for (i=pow(2,N-1)+1; i<=3*pow(2,N-2)-1; i+=2)	for (j=3*pow(2,N-2)-int((i-1)*0.5)+1; j<=i; j++)	for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
+        for (i=pow(2,N-1)+1; i<=3*pow(2,N-2)-1; i+=2) for (j=3*pow(2,N-2)-int((i-1)*0.5)+1; j<=i; j++) for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
             //std::cout << "Loop 6\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
             k++;
         }
-        for (i=3*pow(2,N-2)+1; i<=pow(2,N)-1; i+=2)	for (j=3*pow(2,N-2)-int((i-1)*0.5)+1; j<=3*pow(2,N-1)-i; j++)	for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
+        for (i=3*pow(2,N-2)+1; i<=pow(2,N)-1; i+=2) for (j=3*pow(2,N-2)-int((i-1)*0.5)+1; j<=3*pow(2,N-1)-i; j++) for (l=1; l<=3*pow(2,N-1)+1-i-j; l++){
             //std::cout << "Loop 7\n" << std::endl;
             dat.KW[k] = (3.0*(1.0-kroneckerDelta(i,j))+3.0*(1.0-kroneckerDelta(j,l))+kroneckerDelta(i,l))/(4.0*pow(8.0,N-1));
             dat.K[k][0] = (2.0*double(i)-1)/pow(2,N+1);	dat.K[k][1] = (2.0*double(j)-1)/pow(2,N+1);	dat.K[k][2] = (2.0*double(l)-1)/pow(2,N+1);
@@ -229,7 +224,7 @@ void genkpoint_cohen_chadi (env &dat) {
 
 // Krnoecker Delta Function
 inline bool kroneckerDelta(int m, int n) {
-	return (m == n);
+	return (m==n);
 }
 
 void genkpoint_monkhorst_pack (env &dat) {
@@ -244,33 +239,33 @@ void importkpointfile (env &dat) {
     std::string line;
     if (kdata.is_open())
     {
-        while(getline (kdata,line)){
-        if (!(line[0]=='#' || line=="")){
-            //Line 0: Number of integration k-points in entire BZ
-            if (i == 0){
-                std::stringstream(line) >> NKPT0;
-                i++;
-                continue;	
-            }
-            //Line 1: Number of irreducible k-points in BZ
-            else if (i==1){
-                std::stringstream(line) >> NKPT;  
-                dat.K = new double*[NKPT];
-                dat.KW = new double[NKPT];
-                for (int j=0; j<NKPT; j++){
-                    dat.K[j] = new double[3];
-                }//end of for j
-                i++;
-                continue;
-            }
-            else if (i>1 && i-2<NKPT){
-                //Line 1: Number of plane waves
-                std::stringstream(line) >> dat.K[i-2][0] >>  dat.K[i-2][1] >>  dat.K[i-2][2] >>  dat.KW[i-2];  
-                dat.KW[i-2] = dat.KW[i-2]/NKPT0;
-                i++;
-                continue; 
-            
-            }//else if i
+        while(getline(kdata,line)){
+            if (!(line[0]=='#' || line=="")){
+                //Line 0: Number of integration k-points in entire BZ
+                if (i==0){
+                    std::stringstream(line) >> NKPT0;
+                    i++;
+                    continue;	
+                }
+                //Line 1: Number of irreducible k-points in BZ
+                else if (i==1){
+                    std::stringstream(line) >> NKPT;  
+                    dat.K = new double*[NKPT];
+                    dat.KW = new double[NKPT];
+                    for (int j=0; j<NKPT; j++){
+                        dat.K[j] = new double[3];
+                    }//end of for j
+                    i++;
+                    continue;
+                }
+                else if (i>1 && i-2<NKPT){
+                    //Line 1: Number of plane waves
+                    std::stringstream(line) >> dat.K[i-2][0] >>  dat.K[i-2][1] >>  dat.K[i-2][2] >>  dat.KW[i-2];  
+                    dat.KW[i-2] = dat.KW[i-2]/NKPT0;
+                    i++;
+                    continue; 
+                
+                }//else if i
             }//end of if line
         }//end of while 
     }//end of if kdata open
