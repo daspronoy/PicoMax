@@ -2,8 +2,8 @@
 #!/bin/bash
 
 # picomax_exe=/home/sauron/projects/picomax/src/picomax
-wdir=/home/sauron/projects/picomax/output_files/
-kpointsfile=/home/sauron/projects/picomax/src/KPOINTS_1328.txt
+wdir=/mnt/e/PicoMax/output_files/
+kpointsfile=/mnt/e/PicoMax/src/KPOINTS_1328.txt
 
 
 qnum=6,10,5,11
@@ -26,5 +26,5 @@ vg=0.565147,1.33333,1.89848,2.26059,3.59392,4,4.56515,5.08632,5.33333,5.89848,6.
 # -kpointfile ${kpointsfile}
 # -kk=0 delta 0 epsilon 0.100000 -kpoint 1 -kpointorder 20 -refpoint 0.666666667,0,0.37588 -gammazero 0,0,0 \
 
-/home/sauron/projects/picomax/src/picomax -switch epsij -crystal te -a 4.457200 -vg ${vg} \
--encut 300 -gsym 1 -neps 9 -nband 20 -nvalence 9 -nfreq 1001 -dfreq 0.02000 -kk 1 -epsilon 0.01 -delta 0  -f 1.330207  -u 0.263170  -wdir ${wdir} -outputfile temp_lfe -kpoint 1 -kpointorder 11 -qvec 0,0,0.1 -refpoint 0.66667,0,0.375880
+/mnt/e/PicoMax/src/picomax -switch epsij -crystal te -a 4.457200 -vg ${vg} \
+-encut 300 -gsym 1 -neps 9 -nband 20 -nvalence 9 -nfreq 1001 -dfreq 0.02000 -kk 1 -epsilon 0.01 -delta 0  -f 1.330207  -u 0.263170  -wdir ${wdir} -outputfile temp -kpoint 1 -kpointorder 2 -qvec 0,0,0.1 -refpoint 0.66667,0,0.375880
