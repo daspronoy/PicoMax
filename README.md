@@ -12,14 +12,31 @@
 
 ## Todo:
 * add logfile output
-    picomax ... -logfile true? (check other software languages)
+    `picomax ... -logfile true` ? (check other software)
 * linearize (m,n) dimensions
-* progress output
 * hdf5 output support (this will be important for reusing results)
-* 
+* `-crystal zb` -> a1,a2,a3,b1,b2,b3,t1,t2
+* `-crystal wz`
+* -crystal 2d??
+* `-bvector -1,1,1,1,-1,1,1,1,-1` (zb)
+* `-avector 0,0.5,0.5,0.5,0,0.5,0.5,0.5,0` (zb)
+* `-atomicbasis 0,0,0,0.25,0.25,0.25` (zb)
+* `-Vformfac 3,4,8,11,v1_3,v1_4,v1_8,...` (zb)
+*   automatically set `vcut` from the maximum `|g|^2` value
+* `-vtol 0.1`
 
 
+Silicon:
+`-a 5.43 -vg 3,4,8,11,-0.21,0,0.04,0.08,-0.21,0,0.04,0.08`
+SiC:
+`-a 4.35 -vg 3,4,8,11,-0.225,0.005,0.118,0.127,-0.545,-0.005,0.118,0.121`
 
+
+`-a 4.35 -vg 3,4,8,11,12,16,-0.166,-0.020,0.130,0.002,0,0,-0.450,-0.412,-0.110,0.128,0.182,0.130`
+
+
+## 
+sudo apt-get install libhdf5-dev
 
 
 
@@ -56,19 +73,10 @@
 
 
 ## Future plans
-* Progress bar
-    Starting computation...
-    5% (100 s)
-    10% (200 s)
-    ...
-    100% (1000 s)
-    Complete!
 * Estimation of memory requirements
 * Estimation of calculation time
 * Multi-node calculation (cluster), MPI
 * leave a log file (on/off)
-* specify output file
-    picomax ... -output asdf.dat
 * Wannier function
 * integration with VASP/Quantum Espresso/... for general materials
 * Monkhorst-Pack grids, Cohen-Chadi grids, ...
@@ -96,6 +104,44 @@
 
 
 
+
+## Meaning of input arguments
+
+`-switch`:
+
+`-outputfile`: 
+
+`-wdir`: working directory
+
+`-nband`: the number of electron bands
+
+`-nchi`: the size of dielectric matrix
+
+`-encut`: the energy cutoff for g-vectors
+
+`-nfreq`: the number of frequency points
+
+`-dfreq`: the frequency interval [eV]
+
+`-kk`: switch for Kramers-Kronig transform
+
+`-delta`: model of delta function
+
+`-epsilon`: the smearing parameter of delta function [eV]
+
+`-qpath`: 
+
+`-qnum`: 
+
+`-qvec`: 
+
+`-a`:
+
+`-f`:
+
+`-u`:
+
+`-vg`:
 
 
 

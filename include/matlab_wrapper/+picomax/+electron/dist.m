@@ -38,9 +38,9 @@ NPW = size(gvec,2);
 if ~isnumeric(qvec)
     qvec = picomax.highsym.fcc(qvec);
 end
-dQ = vecnorm(o.num.QVEC-qvec(:),1,1);
+dQ = vecnorm(o.num.qvec-qvec(:),1,1);
 [~,q] = min(dQ);
-qvec = o.num.QVEC(:,q);
+qvec = o.num.qvec(:,q);
 
 % eigenvector component
 Cql = o.dat.electron.V(:,lambda,q);

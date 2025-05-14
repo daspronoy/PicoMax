@@ -1,0 +1,146 @@
+
+
+
+
+
+
+
+
+function [] = Xij(o)
+picomax_cmd = sprintf( ...
+    "-switch Xij " + ...
+    "-crystal %s -a %f -vg %s " + ...
+    "-encut %d -gsym %d -nchi %d " + ...
+    "-nband %d -nvalence %d " + ...
+    "-nomega %d -domega %f -omega2 %f -kk_transform %d -epsilon %f -delta %d ", ...
+    o.sys.crystal,o.sys.a,regexprep(num2str(o.sys.vg),'\s+',','), ...
+    o.num.encut,o.num.gsym,o.num.nchi, ...
+    o.num.nband,o.num.nvalence,...
+    o.num.nomega,o.num.domega,o.num.omega2,o.num.kk_transform,o.num.epsilon,o.num.delta);
+
+if ~isempty(o.sys.f) && (o.sys.f~=0)
+    picomax_cmd = sprintf( ...
+        "%s -f %f ", ...
+        picomax_cmd,o.sys.f);
+end
+if ~isempty(o.sys.u) && (o.sys.u~=0)
+    picomax_cmd = sprintf( ...
+        "%s -u %f ", ...
+        picomax_cmd,o.sys.u);
+end
+
+% 
+picomax_cmd = sprintf( ...
+    "%s -wdir %s " + ...
+    "-outputfile %s ", ...
+    picomax_cmd, ...
+    [o.num.base_remote o.num.wdir], ...
+    o.num.outputfile);
+
+
+
+% BZ integration (KPOINT)
+if o.num.kptopt==0
+    picomax_cmd = sprintf( ...
+        "%s -kptopt %d -kptfile %s ", ...
+        picomax_cmd, ...
+        o.num.kptopt,o.num.kpointfile);
+elseif o.num.kptopt==3 % Cohen-Chadi grid
+    picomax_cmd = sprintf( ...
+        "%s -kptopt %d -kptorder %d ", ...
+        picomax_cmd, ...
+        o.num.kptopt,o.num.kptorder);
+elseif o.num.kptopt==2 % Monkhorst-Pack grid
+    picomax_cmd = sprintf( ...
+        "%s -kptopt %d -kptorder %d ", ...
+        picomax_cmd, ...
+        o.num.kptopt,o.num.kptorder);
+elseif o.num.kptopt==1
+    picomax_cmd = sprintf( ...
+        "%s -kptopt %d -kptorder %d ", ...
+        picomax_cmd, ...
+        o.num.kptopt,o.num.kptorder);
+end
+
+% q vectors
+if (~isempty(o.num.qnum) && ~isempty(o.num.qpath)) % q-path
+    picomax_cmd = ...
+        sprintf("%s -qnum %s -qpath %s -refpoint %s -gammazero %s", ...
+        picomax_cmd, ...
+        regexprep(num2str(o.num.qnum),'\s+',','), ...
+        o.num.qpath, ...
+        regexprep(num2str(o.num.refpoint(:).'),'\s+',','), ...
+        regexprep(num2str(o.num.gammazero(:).'),'\s+',','));
+    o.num.nqvec = sum(o.num.qnum)+1;
+else % manual qvec
+    picomax_cmd = ...
+        sprintf("%s -qvec %s -refpoint %s -gammazero %s", ...
+        picomax_cmd, ...
+        regexprep(num2str(o.num.qvec(:).'),'\s+',','), ...
+        regexprep(num2str(o.num.refpoint(:).'),'\s+',','), ...
+        regexprep(num2str(o.num.gammazero(:).'),'\s+',','));
+    o.num.nqvec = size(o.num.qvec,2);
+end
+
+
+% construct system cmd
+picomax_cmd = sprintf("%s %s", ...
+    o.num.picomax_exe,picomax_cmd);
+switch o.num.system
+    case 'linux'
+        system_cmd = picomax_cmd;
+    case 'wsl'
+        system_cmd = sprintf( ...
+            "powershell -command ""wsl bash -c '%s'""", ...
+            picomax_cmd);
+end
+
+% save the commands for debugging purposes
+o.tmp.system_cmd = system_cmd;
+o.tmp.picomax_cmd = picomax_cmd;
+
+
+% run the system cmd
+tic
+[status,cmdout] = system(system_cmd);
+o.tmp.cmdout = cmdout;
+toc
+
+
+% import frequency grids
+datfile = [o.num.base_local o.num.wdir o.num.outputfile '.fpt'];
+o.import(datfile,'f');
+
+% import g-vector grids
+datfile = [o.num.base_local o.num.wdir o.num.outputfile '.gpt'];
+o.import(datfile,'g');
+
+% import q-vector grids
+datfile = [o.num.base_local o.num.wdir o.num.outputfile '.qpt'];
+o.import(datfile,'q');
+
+% import the result file (.dat)
+datfile = [o.num.base_local o.num.wdir o.num.outputfile '.dat'];
+o.import(datfile,'Xij');
+
+
+
+% nfreq = o.num.nfreq;
+% o.dat.omega = o.num.dfreq*(0:1:nfreq-1);
+% if (~isempty(o.num.qnum) && ~isempty(o.num.qpath))
+%     nq = sum(o.num.qnum)+1;
+%     o.dat.qi = 0:nq-1;
+% else
+%     nq = 1;
+%     o.dat.qi = 0;
+% end
+% ne = o.num.neps*(o.num.neps+1)/2;
+% N = ne*nq*nfreq;
+% 
+% 
+% o.dat.realepsL = permute(reshape(eps(0*N+1:1*N),[nfreq ne nq]),[1 3 2]);
+% o.dat.imagepsL = permute(reshape(eps(1*N+1:2*N),[nfreq ne nq]),[1 3 2]);
+% o.dat.realepsT = permute(reshape(eps(2*N+1:3*N),[nfreq ne nq]),[1 3 2]);
+% o.dat.imagepsT = permute(reshape(eps(3*N+1:4*N),[nfreq ne nq]),[1 3 2]);
+end
+

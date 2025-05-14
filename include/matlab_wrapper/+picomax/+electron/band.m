@@ -4,7 +4,7 @@ function [] = band(o,varargin)
 
 % input parser
 p = inputParser;
-addParameter(p,'sort',false);
+addParameter(p,'sort',true);
 addParameter(p,'offset',true);
 parse(p,varargin{:})
 p = p.Results;

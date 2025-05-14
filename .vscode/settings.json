@@ -103,6 +103,9 @@
         "thread": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "sparsecore": "cpp",
+        "eigenvalues": "cpp",
+        "filesystem": "cpp"
     }
 }

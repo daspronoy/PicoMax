@@ -5,13 +5,15 @@
 classdef system < handle & matlab.mixin.SetGet
     
     properties
-        crystal {mustBeMember(crystal,{'fcc','hex'})} = 'fcc'
+        crystal = 'zb'
         a (1,1) {mustBeNumeric}
+        f (1,1) {mustBeNumeric}
+        u (1,1) {mustBeNumeric}
         lattice_vector (3,:) {mustBeNumeric}
         reciprocal_vector (3,:) {mustBeNumeric}
 
         epm {mustBeNumeric}
-
+        vg {mustBeNumeric}
     end
     
     methods
@@ -21,7 +23,7 @@ classdef system < handle & matlab.mixin.SetGet
 
         function [] = initialize(o)
             switch o.crystal
-                case 'fcc'
+                case 'zb'
                     o.lattice_vector = [
                         [0;0.5;0.5], ...
                         [0.5;0;0.5], ...
@@ -30,7 +32,7 @@ classdef system < handle & matlab.mixin.SetGet
                         [-1;1;1], ...
                         [1;-1;1], ...
                         [1;1;-1]];
-                case 'hex'
+                case 'wz'
             end
 
         end

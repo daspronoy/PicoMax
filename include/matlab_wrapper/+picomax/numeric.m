@@ -16,12 +16,14 @@ classdef numeric < handle & matlab.mixin.SetGet
         % number of electronic bands
         nband (1,1) {mustBeNumeric} = 8
         originshift (1,1) {mustBeInteger} = 0
-
+        nvalence (1,1) {mustBeNumeric} = 4
+        
         % number of q-vectors
         nqvec (1,1) {mustBeNumeric}
         qvec (3,:) {mustBeNumeric}
         qpath
         qnum
+        gammazero (3,1) {mustBeNumeric} = [0;0;0]
 
         % number of frequency
         nfreq (1,1) {mustBeNumeric} = 1
@@ -34,6 +36,8 @@ classdef numeric < handle & matlab.mixin.SetGet
         kpointfile string
         kpoint (1,1) {mustBeNumeric} = 0
         kpointorder (1,1) {mustBeNumeric} = 3
+
+        refpoint (3,1) {mustBeNumeric} = [0;0;0]
     end
 
     properties
