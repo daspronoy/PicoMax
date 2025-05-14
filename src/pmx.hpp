@@ -132,6 +132,16 @@ struct mater {
     double g2max;// maximum |g|^2
     bool nonlocal = false;
 
+    //spin-orbit coupling parameters
+    // These would typically be arrays or maps, storing values for specific G^2 values
+    // Example: V_SO_S[G_sq_index], V_SO_A[G_sq_index]
+    // We'll need to populate these based on literature for your material of interest
+    // (e.g., from Chelikowsky and Cohen, Phys. Rev. B 14, 556 (1976))
+    // Values are typically in Rydbergs.
+
+    std::map<int, double> Us_SO_Ry; // Symmetric SOC form factor (key is G_sq e.g., 3, 4, 8, 11)
+    std::map<int, double> Ua_SO_Ry; // Antisymmetric SOC form factor
+
     std::vector<double> g2;// |g_i|^2 [NV]
     double **vg;// v_{|g_i|^2}^{a} [NV x NATOM]
 };

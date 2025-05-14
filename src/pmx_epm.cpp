@@ -1,8 +1,6 @@
 /*
     epm.cpp | includes functions related to calculation of electronic bands
 
-    Author: Jungho Mun
-    Date: June 6, 2024
 */
 
 /*
@@ -195,6 +193,16 @@ void empiricalpseudopotentialmethod(env &dat){
 */
 
 
+/*
+    Incorporating spin-orbit coupling
+
+    Steps:
+        1. The current plane-wave basis ∣K+G> needs to be expanded to include spin. Each plane wave G_i will now correspond to two basis states: ∣K+G_i>∣uparrow> and ∣K+G_i>∣downarrow>.
+        2. This doubles the size of your Hamiltonian matrix from NPW x NPW to 2NPW x 2NPW
+*/
+
+
+
 
 // complex nonlocal-pseudopotential for the given reciprocal vector
 std::complex<double> nonlocalpseudopotential(Eigen::Vector3d Gm, Eigen::Vector3d Gn, 
@@ -283,123 +291,10 @@ void setRefEnergy(env &dat){
     // zero level of energy at the valence band maximum at reference point
     // dat.energyoffset = -1.6;
     // dat.energyoffset = eigsolver.eigenvalues()(dat.nvalence-1);
-    dat.energyoffset = (eigsolver.eigenvalues()(dat.nvalence)+eigsolver.eigenvalues()(dat.nvalence-1))/2.0;
+    dat.energyoffset = (eigsolver.eigenvalues()(dat.nvalence)+eigsolver.eigenvalues()(dat.nvalence-1))/2.0; // sets the energy offset to the average of the valence band maximum and the conduction band minimum
 
     return;
 }
 
+
 }/* namespace pmx */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// // hamiltonian matrix for EPM
-// Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G, Eigen::Vector3d K, std::vector<double> v){
-//     Eigen::MatrixXcd H(NPW, NPW);
-//     double KINETIC_CONST = KCON*pow(2.0*pi/a,2);
-
-//     for (int i=0; i<NPW; i++){ for (int j=0; j<=i; j++){
-//         if (i==j){ // diagonal kinetic part
-//             H(i,j) = KINETIC_CONST * (K+G[i]).squaredNorm();
-//         }else{ // local pseudopotential
-//             Eigen::Vector3d dG = G[i]-G[j];
-//             if (dG.squaredNorm()<11.1)
-//                 H(i,j) = pseudopotential(dG,v);
-//             else
-//                 H(i,j) = 0;
-//         }
-//         if (EPM_NONLOCAL){ // nonlocal pseudopotential
-//             H(i,j) += nonlocalpseudopotential(K+G[i],K+G[j],v);
-//         }
-//     }}
-//     // only lower triangle is needed for eigenvalue calculation
-//     return H;
-// }
-
-
-
-// // complex pseudopotential for the given reciprocal vector
-// std::complex<double> pseudopotential(Eigen::Vector3d G, std::vector<double> v){
-//     //define variables for symmetric and asymmetric part of the potential
-// 	double vs = 0.0e0, va= 0.0e0;
-// 	std::complex<double> potential = 0.0e0;
-
-// 	//Each cell has 2 atoms.  Use mid point between them as offset
-// 	Eigen::Vector3d vec_tau;
-//     vec_tau << 0.125, 0.125, 0.125;
-
-// 	//Find the magnitude of the reciprocal vector
-//     double GMAG = G.squaredNorm();
-
-// 	//assign symmetric and asymmetric part of the potential 
-// 	if (abs(double(GMAG - 3.0)) < 1e-6){ vs = v[0]; va = v[3]; }
-// 	else if (abs(double(GMAG - 4.0)) < 1e-6){ vs = 0.0; va = v[4]; }
-// 	else if (abs(double(GMAG - 8.0)) < 1e-6){ vs = v[1]; va = 0.0; }
-// 	else if (abs(double(GMAG - 11.0)) < 1e-6){ vs = v[2]; va = v[5]; }
-// 	else { vs = 0.0e0; va = 0.0e0; }
-
-// 	//Complex Pseudopotential value, potentials are scaled to rydberg units
-//     if (ORIGINSHIFT){
-//         potential = std::complex<double>(
-//                         vs*cos(2.0*pi*(G.dot(vec_tau)))*Ry2eV, 
-//                         va*sin(2.0*pi*(G.dot(vec_tau)))*Ry2eV );
-//     }else{
-//         double V1, V2;
-//         V1 = (vs+va)/2;
-//         V2 = (vs-va)/2;
-//         potential = std::complex<double>(
-//                         (V1 + V2*cos(-4.0*pi*(G.dot(vec_tau))))*Ry2eV,
-//                         (V2*sin(-4.0*pi*(G.dot(vec_tau))))*Ry2eV );
-//     }
-// 	return potential;
-// }
-
-
-
-
-
-
-    // //define variables for symmetric and asymmetric part of the potential
-	// double vs = 0.0e0, va = 0.0e0;
-	// std::complex<double> potential = 0.0e0;
-
-	// //Each cell has 2 atoms.  Use mid point between them as offset
-	// Eigen::Vector3d vec_tau;
-    // vec_tau << 0.125, 0.125, 0.125;
-
-	// //Find the magnitude of the reciprocal vector
-    // double GMAG = G.squaredNorm();
-
-	// //assign symmetric and asymmetric part of the potential 
-	// if (abs(double(GMAG - 3.0)) < 1e-6){ vs = v[0]; va = v[3]; }
-	// else if (abs(double(GMAG - 4.0)) < 1e-6){ vs = 0.0; va = v[4]; }
-	// else if (abs(double(GMAG - 8.0)) < 1e-6){ vs = v[1]; va = 0.0; }
-	// else if (abs(double(GMAG - 11.0)) < 1e-6){ vs = v[2]; va = v[5]; }
-	// else { vs = 0.0e0; va = 0.0e0; }
-
-	// //Complex Pseudopotential value, potentials are scaled to rydberg units
-    // if (ORIGINSHIFT){
-    //     potential = std::complex<double>(
-    //                     vs*cos(2.0*pi*(G.dot(vec_tau)))*Ry2eV, 
-    //                     va*sin(2.0*pi*(G.dot(vec_tau)))*Ry2eV );
-    // }else{
-    //     double V1, V2;
-    //     V1 = (vs+va)/2;
-    //     V2 = (vs-va)/2;
-    //     potential = std::complex<double>(
-    //                     (V1 + V2*cos(-4.0*pi*(G.dot(vec_tau))))*Ry2eV,
-    //                     (V2*sin(-4.0*pi*(G.dot(vec_tau))))*Ry2eV );
-    // }
-	// return potential;
