@@ -1,6 +1,6 @@
 #compile_cmd.sh
 #!/bin/bash
-BASE=/mnt/c/Users/prono/Projects/PicoMax-1
+BASE=/mnt/c/Users/prono/Projects/PicoMax
 
 
 # -ffast-math

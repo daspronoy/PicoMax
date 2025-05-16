@@ -141,6 +141,8 @@ struct mater {
 
     std::map<int, double> Us_SO_Ry; // Symmetric SOC form factor (key is G_sq e.g., 3, 4, 8, 11)
     std::map<int, double> Ua_SO_Ry; // Antisymmetric SOC form factor
+    bool use_uniform_us_so = false; // Flag to use a single us_so value for all G^2
+    double uniform_us_so_val_Ry = 0.0; // Uniform us_so value in Rydbergs
 
     std::vector<double> g2;// |g_i|^2 [NV]
     double **vg;// v_{|g_i|^2}^{a} [NV x NATOM]

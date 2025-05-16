@@ -45,6 +45,13 @@ void doc(){
         << "-u : atomic basis parameter\n"
         << "-vg : empirical pseudopotential form factors\n"
         << "    ex) ...\n"
+        << "-us_so : Symmetric Spin-Orbit form factors (G^2:value,G^2:value,...)\n"
+        << "    ex) -us_so 3:0.015,8:-0.008,11:0.007\n"
+        << "-use_uniform_us_so : Use a single value for symmetric SO coupling for all G^2 (flag)\n"
+        << "-uniform_us_so_val : The uniform symmetric SO coupling value in Rydbergs (used if -use_uniform_us_so is present)\n"
+        << "    ex) -uniform_us_so_val 0.02\n"
+        << "-ua_so_val_g0 : Antisymmetric Spin-Orbit form factor for G^2=0 (single value)\n"
+        << "    ex) -ua_so_val_g0 0.0\n"
         << "-encut : energy cutoff [eV]\n"
         << "-gcut : g-vector cutoff [2*pi/a]\n"
         << "-kpoint : switch for kpoint grids\n"
@@ -339,8 +346,55 @@ void init_mater(inputParser inp, mater &mat){
     }
 
     
+    // Parse Symmetric SOC parameters Us_SO_Ry
+    if (inp.existOption("-use_uniform_us_so")) {
+        mat.use_uniform_us_so = true;
+        if (inp.existOption("-uniform_us_so_val")) {
+            try {
+                mat.uniform_us_so_val_Ry = std::stod(inp.valueOption("-uniform_us_so_val"));
+            } catch (const std::invalid_argument& ia) {
+                std::cerr << "Invalid argument for -uniform_us_so_val: Must be a number." << std::endl;
+            } catch (const std::out_of_range& oor) {
+                std::cerr << "Out of range for -uniform_us_so_val." << std::endl;
+            }
+        } else {
+            std::cerr << "Warning: -use_uniform_us_so is set, but -uniform_us_so_val is not provided. Defaulting to 0.0 Ry." << std::endl;
+            mat.uniform_us_so_val_Ry = 0.0;
+        }
+    } else if (inp.existOption("-us_so")){
+        mat.use_uniform_us_so = false; // Explicitly set to false if individual values are provided
+        std::vector<std::string> v_so_s_pairs;
+        v_so_s_pairs = inp.vectorOption("-us_so"); // comma-separated G^2:value pairs
+        for (const std::string& pair_str : v_so_s_pairs) {
+            std::stringstream ss_pair(pair_str);
+            std::string g2_str, val_str;
+            if (std::getline(ss_pair, g2_str, ':') && std::getline(ss_pair, val_str)) {
+                try {
+                    int g2_key = std::stoi(g2_str);
+                    double val = std::stod(val_str);
+                    mat.Us_SO_Ry[g2_key] = val;
+                } catch (const std::invalid_argument& ia) {
+                    std::cerr << "Invalid argument for -us_so pair: " << pair_str << ". Format G^2:value expected." << std::endl;
+                } catch (const std::out_of_range& oor) {
+                    std::cerr << "Out of range for -us_so pair: " << pair_str << std::endl;
+                }
+            } else {
+                std::cerr << "Invalid format for -us_so pair: " << pair_str << ". Format G^2:value expected." << std::endl;
+            }
+        }
+    }
 
-
+    // Parse Antisymmetric SOC parameter Ua_SO_Ry for G^2=0
+    if (inp.existOption("-ua_so_val_g0")){
+        try {
+            double val_ua_g0 = std::stod(inp.valueOption("-ua_so_val_g0"));
+            mat.Ua_SO_Ry[0] = val_ua_g0; // Store only for G^2=0
+        } catch (const std::invalid_argument& ia) {
+            std::cerr << "Invalid argument for -ua_so_val_g0: Must be a number." << std::endl;
+        } catch (const std::out_of_range& oor) {
+            std::cerr << "Out of range for -ua_so_val_g0." << std::endl;
+        }
+    }
 }
 
 
@@ -446,17 +500,38 @@ void printInput(env &dat){
                 << "lattice constant [angstrom]: " << a << "\n"
                 << "Empirical pseudopotential form factors, Vg:" << "\n"
                 << "g2: \t";
-                for (int i=0; i<dat.mat.NV; i++){
-                    std::cout << dat.mat.g2[i] << "\t";
-                }
-                std::cout << "\n";
-                for (int i=0; i<NATOM; i++){
-                    std::cout << "atom " << (i+1) << ": ";
-                    for (int j=0; j<dat.mat.NV; j++){
-                        std::cout << dat.mat.vg[i][j] << "\t";
+                if (dat.mat.NV > 0) { // Check if vg was actually initialized
+                    for (int i=0; i<dat.mat.NV; i++){
+                        std::cout << dat.mat.g2[i] << "\t";
                     }
                     std::cout << "\n";
+                    for (int i=0; i<NATOM; i++){
+                        std::cout << "atom " << (i+1) << ": ";
+                        for (int j=0; j<dat.mat.NV; j++){
+                            std::cout << dat.mat.vg[i][j] << "\t";
+                        }
+                        std::cout << "\n";
+                    }
+                } else {
+                    std::cout << "(Not provided or not applicable)\n";
                 }
+    std::cout << "Symmetric Spin-Orbit form factors (Us_SO_Ry):" << "\n";
+    if (dat.mat.use_uniform_us_so) {
+        std::cout << "  Using uniform Us_SO value: " << dat.mat.uniform_us_so_val_Ry << " Ry for all G^2\n";
+    } else if (!dat.mat.Us_SO_Ry.empty()){
+        for(const auto& pair : dat.mat.Us_SO_Ry){
+            std::cout << "  G^2 = " << pair.first << ": " << pair.second << " Ry\n";
+        }
+    } else {
+        std::cout << "  (Not provided or default values used)\n";
+    }
+    std::cout << "Antisymmetric Spin-Orbit form factor for G^2=0 (Ua_SO_Ry[0]):" << "\n";
+    auto it_ua_g0 = dat.mat.Ua_SO_Ry.find(0);
+    if (it_ua_g0 != dat.mat.Ua_SO_Ry.end()){
+        std::cout << "  G^2 = 0: " << it_ua_g0->second << " Ry\n";
+    } else {
+        std::cout << "  (Not provided, effectively 0 for G^2=0 and other G^2 values)\n";
+    }
     std::cout << "atomic basis vectors:\n";
     for (int i=0; i<NATOM; i++){
         std::cout << " " << dat.lat.atomic[i].transpose() << "\n";
@@ -910,8 +985,3 @@ void export_kpt(env &dat){
 
 //     return;
 // }
-
-
-
-
-
