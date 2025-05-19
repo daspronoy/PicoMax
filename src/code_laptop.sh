@@ -28,4 +28,4 @@ vg=0.565147,1.33333,1.89848,2.26059,3.59392,4,4.56515,5.08632,5.33333,5.89848,6.
 
 /mnt/c/Users/prono/Projects/PicoMax/src/picomax -switch band -crystal te -a 4.457200 -vg ${vg} -Us_SO_Ry 0.3 -Ua_SO_Ry 0 \
 -encut 200 -gsym 1 -neps 9 -nband 40 -nvalence 9 -nfreq 1001 -dfreq 0.02000 -kk 1 -epsilon 0.01 -delta 0  -f 1.330207  -u 0.263170 \
-  -wdir ${wdir} -outputfile temp -kpoint 1 -kpointorder 2 -qnum ${qnum} -qpath ${qpath} -ua_so_val_g0 0.0 -use_uniform_us_so -uniform_us_so_val 0.01
+  -wdir ${wdir} -outputfile temp -kpoint 1 -kpointorder 2 -qnum ${qnum} -qpath ${qpath} -ua_so_val_g0 0.0 -use_uniform_us_so -uniform_us_so_val 0.001
