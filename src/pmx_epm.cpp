@@ -90,7 +90,6 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
                     H_scalar_part = std::complex<double>(0.0, 0.0);
                 }
             }
-
             Eigen::Matrix2cd H_scalar_2x2_block = H_scalar_part * identity_2x2;
 
             // SOC Part
@@ -124,9 +123,15 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
                     sin_sum += std::sin(2.0 * pi * q_vec_soc_dimless.dot(atom_pos_a_units));
                 }
             }
+
+            if (NATOM > 0) { // NATOM is global
+                cos_sum /=NATOM;
+                sin_sum /=NATOM;
+            }
             
             // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
-            double VSO_scalar_struct_part = lambda_S_eV * cos_sum + lambda_A_eV * sin_sum;
+            // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
+            double VSO_scalar_struct_part = lambda_S_eV * cos_sum;
             // WARNING: If Lambda_A and sin_sum are both non-zero, the Mathematica formula
             // for VSO might lead to a non-Hermitian Hamiltonian.
             // For Ge, Lambda_A is often zero. For Te, this might need review.
