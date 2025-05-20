@@ -3,7 +3,7 @@ fid = fopen(filename);
 data= fread(fid,'double');
 fclose(fid);
 
-npts=31;
+npts=41;
 eband=reshape(data(1:end,:),[40 npts]);
 set(gcf,'renderer','opengl', 'Position',  [500, 100, 900, 800])
 
