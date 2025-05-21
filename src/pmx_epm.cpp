@@ -20,32 +20,34 @@ namespace pmx{
 
 // Helper to get SOC form factor; returns value in Ry
 // q_sq_norm_dimless is |G'-G|^2, where G vectors are dimensionless (multiples of 2*pi/a)
-double get_soc_form_factor(const std::map<int, double>& so_map, double q_sq_norm_dimless) {
+double get_soc_form_factor(const std::map<double, double>& so_map, double q_sq_norm_dimless) {
     double tol = 1e-3; // Tolerance for matching q_sq_norm
-    // The keys in so_map are integers like 3, 4, 8, 11.
-    // We round q_sq_norm_dimless to the nearest integer and check tolerance.
-    // If q_sq_norm_dimless is very small (e.g. for G'=G), it should be 0.
+    // The keys in so_map are doubles like 0.565147, 1.33333, etc.
+    // We search for the closest key in the map.
     if (std::abs(q_sq_norm_dimless) < tol) {
         // For q=0, SOC form factors are typically zero or not well-defined in this context.
         // The cross product term will also be zero if G'=G and K vectors are the same.
         // However, if map contains a key for 0, use it.
-        auto it_zero = so_map.find(0);
+        auto it_zero = so_map.find(0.0);
         if (it_zero != so_map.end()) {
             return it_zero->second;
         }
         return 0.0;
     }
 
-    int q_sq_int = static_cast<int>(std::round(q_sq_norm_dimless));
-    
-    auto it = so_map.find(q_sq_int);
-    if (it != so_map.end()) {
-        // Check if the original q_sq_norm_dimless is close enough to q_sq_int
-        if (std::abs(q_sq_norm_dimless - static_cast<double>(q_sq_int)) < tol) {
-            return it->second; // Value is in Rydbergs
+    double closest_key = 0.0;    double min_diff = std::numeric_limits<double>::max();
+    for (const auto& pair : so_map) {
+        double diff = std::abs(q_sq_norm_dimless - pair.first);
+        if (diff < min_diff) {
+            min_diff = diff;
+            closest_key = pair.first;
         }
     }
-    return 0.0; // Default if not found or not close enough
+
+    if (min_diff < tol) {
+        return so_map.at(closest_key);
+    }
+    return 0.0;
 }
 
 /*
@@ -61,7 +63,7 @@ double get_soc_form_factor(const std::map<int, double>& so_map, double q_sq_norm
         Hexagonal CdSe, CdS, and ZnS", Phys. Rev. 164, 1069 (1967)
     SOC part inspired by user-provided Mathematica code.
 */
-Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::Vector3d K_vec, std::vector<Eigen::Vector3d> atomic_pos, mater mat_params){
+Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::Vector3d K_vec, std::vector<Eigen::Vector3d> atomic_pos, pmx::mater mat_params){
     int num_g_vectors = NPW; // NPW is a global variable for number of plane waves
     Eigen::MatrixXcd H_soc(2 * num_g_vectors, 2 * num_g_vectors);
     H_soc.setZero(); // Initialize to zero
@@ -83,9 +85,8 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
                 H_scalar_part = KINETIC_CONST * (K_vec + G_vectors[i]).squaredNorm();
                 // V(G=0) from local pseudopotential is typically zero or absorbed into energy reference.
             } else { // Off-diagonal G-block: Local pseudopotential
-                Eigen::Vector3d dG_pseudo = G_vectors[i] - G_vectors[j];
-                if (dG_pseudo.squaredNorm() < mat_params.g2max) {
-                    H_scalar_part = pseudopotential(dG_pseudo, atomic_pos, mat_params);
+                Eigen::Vector3d dG_pseudo = G_vectors[i] - G_vectors[j];                if (dG_pseudo.squaredNorm() < mat_params.g2max) {
+                    H_scalar_part = pmx::pseudopotential(dG_pseudo, atomic_pos, mat_params);
                 } else {
                     H_scalar_part = std::complex<double>(0.0, 0.0);
                 }
@@ -105,9 +106,9 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             if (mat_params.use_uniform_us_so) {
                 lambda_S_Ry = mat_params.uniform_us_so_val_Ry;
             } else {
-                lambda_S_Ry = get_soc_form_factor(mat_params.Us_SO_Ry, q_sq_norm);
+                lambda_S_Ry = pmx::get_soc_form_factor(mat_params.Us_SO_Ry, q_sq_norm);
             }
-            double lambda_A_Ry = get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
+            double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
             double lambda_S_eV = lambda_S_Ry * Ry2eV; // Ry2eV is global
             double lambda_A_eV = lambda_A_Ry * Ry2eV;
 
@@ -131,7 +132,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             
             // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
             // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
-            double VSO_scalar_struct_part = lambda_S_eV * cos_sum;
+            std::complex<double> VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
             // WARNING: If Lambda_A and sin_sum are both non-zero, the Mathematica formula
             // for VSO might lead to a non-Hermitian Hamiltonian.
             // For Ge, Lambda_A is often zero. For Te, this might need review.
@@ -178,7 +179,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
         Hexagonal CdSe, CdS, and ZnS", Phys. Rev. 164, 1069 (1967)
 */
 std::complex<double> pseudopotential(
-        Eigen::Vector3d G_diff, std::vector<Eigen::Vector3d> T_atomic_pos, mater mat_params){
+        Eigen::Vector3d G_diff, std::vector<Eigen::Vector3d> T_atomic_pos, pmx::mater mat_params){
     double tol = 1e-3;
     double GMAG_sq = G_diff.squaredNorm(); // This G_diff is G_i - G_j
     int form_factor_idx = -1; // Index for mat_params.vg
@@ -225,7 +226,7 @@ std::complex<double> pseudopotential(
     [3] (Bergstresser and Cohen) "Electronic Structure and Optical Properties of 
         Hexagonal CdSe, CdS, and ZnS", Phys. Rev. 164, 1069 (1967)
 */
-void empiricalpseudopotentialmethod(env &dat){
+void empiricalpseudopotentialmethod(pmx::env &dat){
     dat.eband = new double*[NQ]; // NQ is global number of Q (k-points in path)
 
     // obtain energy offset
@@ -274,7 +275,7 @@ void empiricalpseudopotentialmethod(env &dat){
     [2] 
 */
 std::complex<double> get_Vg_nonlocal(Eigen::Vector3d Gi, Eigen::Vector3d Gj, 
-                                    std::vector<Eigen::Vector3d> T, mater mat){
+                                    std::vector<Eigen::Vector3d> T, pmx::mater mat){
     // This function is not implemented yet.
     return std::complex<double>(0.0,0.0);
 }
@@ -334,11 +335,11 @@ std::complex<double> nonlocalpseudopotential(Eigen::Vector3d Gm, Eigen::Vector3d
 	double Knr = Kn_phys * rl0_param;
 
 	if(abs(Kmr-Knr) < 1e-9){ // If Kmr and Knr are too close
-		Fl_val = 0.5*pow(rl0_param,3) * (pow(sphbesj(0,Kmr),2) - sphbesj(-1,Kmr)*sphbesj(1,Kmr));
+		Fl_val = 0.5*pow(rl0_param,3) * (pow(pmx::sphbesj(0,Kmr),2) - pmx::sphbesj(-1,Kmr)*pmx::sphbesj(1,Kmr));
 	}else{ // Original formula
         // Typo in original Mathematica: Km*Km-Kn*Kn should be Km_phys^2 - Kn_phys^2
 		Fl_val = (pow(rl0_param,2)/(Km_phys*Km_phys-Kn_phys*Kn_phys)) * 
-                 (Km_phys*sphbesj(1,Kmr)*sphbesj(0,Knr) - Kn_phys*sphbesj(1,Knr)*sphbesj(0,Kmr));
+                 (Km_phys*pmx::sphbesj(1,Kmr)*pmx::sphbesj(0,Knr) - Kn_phys*pmx::sphbesj(1,Knr)*pmx::sphbesj(0,Kmr));
 	}	
 	sym = (4.0*pi/pow(a*angstrom,3))*a0E_val*Fl_val; // sym should be in eV if a0E_val is eV
     // (4pi/Volume) * Energy * Length^3 = Energy * (4pi L^3 / Volume). This should be dimensionless * Energy.
@@ -400,7 +401,7 @@ double sphbesj(int n, double r){
     you can change the reference point using the option `-refpoint x,y,z`
     ex) `picomax ... -refpoint 0.5,0.5,0.5`
 */
-void setRefEnergy(env &dat){
+void setRefEnergy(pmx::env &dat){
 
     // the global Hamiltonian matrix H at reference kpoint
     Eigen::Vector3d K_REF = dat.refpoint; // reference kpoint

@@ -127,8 +127,7 @@ struct lattice {
 };
 
 // material parameters
-struct mater {
-    int NV;// number of vg values
+struct mater {    int NV;// number of vg values
     double g2max;// maximum |g|^2
     bool nonlocal = false;
 
@@ -139,8 +138,8 @@ struct mater {
     // (e.g., from Chelikowsky and Cohen, Phys. Rev. B 14, 556 (1976))
     // Values are typically in Rydbergs.
 
-    std::map<int, double> Us_SO_Ry; // Symmetric SOC form factor (key is G_sq e.g., 3, 4, 8, 11)
-    std::map<int, double> Ua_SO_Ry; // Antisymmetric SOC form factor
+    std::map<double, double> Us_SO_Ry; // Symmetric SOC form factor (key is G_sq e.g., 0.565147, 1.33333, etc.)
+    std::map<double, double> Ua_SO_Ry; // Antisymmetric SOC form factor
     bool use_uniform_us_so = false; // Flag to use a single us_so value for all G^2
     double uniform_us_so_val_Ry = 0.0; // Uniform us_so value in Rydbergs
 

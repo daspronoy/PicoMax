@@ -87,5 +87,6 @@ a=a0 + a1*cos((x-v)*w) + b1*sin((x-v)*w) + ...
 
 scatter(x,y,'black'); hold on;
 plot(x, a);
+grid on;
 xlim([0 6]);
 

@@ -42,11 +42,10 @@ void doc(){
         << "-dim : crystal dimension {3}\n"
         << "-a : lattice constant [angstrom]\n"
         << "-f : lattice parameter\n"
-        << "-u : atomic basis parameter\n"
-        << "-vg : empirical pseudopotential form factors\n"
+        << "-u : atomic basis parameter\n"        << "-vg : empirical pseudopotential form factors\n"
         << "    ex) ...\n"
         << "-us_so : Symmetric Spin-Orbit form factors (G^2:value,G^2:value,...)\n"
-        << "    ex) -us_so 3:0.015,8:-0.008,11:0.007\n"
+        << "    ex) -us_so 0.565147:0.04,1.33333:-0.008,1.89848:0.010\n"
         << "-use_uniform_us_so : Use a single value for symmetric SO coupling for all G^2 (flag)\n"
         << "-uniform_us_so_val : The uniform symmetric SO coupling value in Rydbergs (used if -use_uniform_us_so is present)\n"
         << "    ex) -uniform_us_so_val 0.02\n"
@@ -360,8 +359,7 @@ void init_mater(inputParser inp, mater &mat){
         } else {
             std::cerr << "Warning: -use_uniform_us_so is set, but -uniform_us_so_val is not provided. Defaulting to 0.0 Ry." << std::endl;
             mat.uniform_us_so_val_Ry = 0.0;
-        }
-    } else if (inp.existOption("-us_so")){
+        }    } else if (inp.existOption("-us_so")){
         mat.use_uniform_us_so = false; // Explicitly set to false if individual values are provided
         std::vector<std::string> v_so_s_pairs;
         v_so_s_pairs = inp.vectorOption("-us_so"); // comma-separated G^2:value pairs
@@ -370,7 +368,7 @@ void init_mater(inputParser inp, mater &mat){
             std::string g2_str, val_str;
             if (std::getline(ss_pair, g2_str, ':') && std::getline(ss_pair, val_str)) {
                 try {
-                    int g2_key = std::stoi(g2_str);
+                    double g2_key = std::stod(g2_str); // Changed to double to support floating point G^2 values
                     double val = std::stod(val_str);
                     mat.Us_SO_Ry[g2_key] = val;
                 } catch (const std::invalid_argument& ia) {
@@ -388,7 +386,7 @@ void init_mater(inputParser inp, mater &mat){
     if (inp.existOption("-ua_so_val_g0")){
         try {
             double val_ua_g0 = std::stod(inp.valueOption("-ua_so_val_g0"));
-            mat.Ua_SO_Ry[0] = val_ua_g0; // Store only for G^2=0
+            mat.Ua_SO_Ry[0.0] = val_ua_g0; // Store for G^2=0.0 (as double)
         } catch (const std::invalid_argument& ia) {
             std::cerr << "Invalid argument for -ua_so_val_g0: Must be a number." << std::endl;
         } catch (const std::out_of_range& oor) {
