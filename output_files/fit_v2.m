@@ -61,7 +61,7 @@ results=[];
 for h = 0:4
     for k = 0:4
         for l = 0:4
-            if norm(K(h,k,l)) <= 5
+            if norm(K(h,k,l)) <= 5.5
                 results =[results;[norm(K(h,k,l))^2,polyval(norm(K(h,k,l)))]];
             end
         end
@@ -84,9 +84,10 @@ a=a0 + a1*cos((x-v)*w) + b1*sin((x-v)*w) + ...
                a6*cos(6*(x-v)*w) + b6*sin(6*(x-v)*w) + a7*cos(7*(x-v)*w) + b7*sin(7*(x-v)*w) + ...
                a8*cos(8*(x-v)*w) + b8*sin(8*(x-v)*w);
 
-
-scatter(x,y,'black'); hold on;
-plot(x, a);
-grid on;
-xlim([0 6]);
+plot(results(2:end,1),results(2:end,2));
+% scatter(x,y,'black'); hold on;
+% plot(x, a); hold on;
+% plot(sqrt(results(:,1)),results(:,2)); hold off;
+% grid on;
+% xlim([0 6]);
 
