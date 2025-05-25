@@ -56,8 +56,8 @@ for h = 0:4
     for k = 0:4
         for l = 0:4
             Gnorm = norm(K(h,k,l));
-            if Gnorm <= 5
-                results = [results ; Gnorm^2 , (1/Gnorm)*der_polyval(Gnorm)];
+            if Gnorm <= 8
+                results = [results ; Gnorm^2 , 0.025*(1/Gnorm)*der_polyval(Gnorm)];
             end
         end
     end
@@ -65,14 +65,23 @@ end
 
 
 results=sortrows(results);
-plot(results(2:end,1),results(2:end,2));
+plot(results(2:end,1),results(2:end,2)); hold on;
 
 rounded_results = round(results, 10);
 results=unique(rounded_results,"rows");
 
+
+
+a =   -0.0569*0.025;
+b =     -0.2292;
+c =      0.2347;
+bess = @(x) a*(sin(b*x)./((b*x).^2)-cos(c*x)./(c*x));
+
+plot(results(2:end,1),bess(results(2:end,1))); hold off;
+
 rows = 2:size(results,1);              % use 1:size(...) if you want all
 pairs = compose('%.10g:%.10g', ...
-                results(rows,1), results(rows,2));   % cell array of strings
+                results(rows,1), bess(results(rows,1)));   % cell array of strings
 
 fprintf('output: [%s]\n', strjoin(pairs, ','));
 

@@ -41,9 +41,9 @@ b7 =      0.1913;
 a8 =     0.01524;
 b8 =      0.0677;
 % w =      0.6636;
-w=0.6636;
-v=0;
-a0=17.955;
+w=0.6635;
+v=0.2;
+a0=17.95;
 
 
 
@@ -84,8 +84,8 @@ a=a0 + a1*cos((x-v)*w) + b1*sin((x-v)*w) + ...
                a6*cos(6*(x-v)*w) + b6*sin(6*(x-v)*w) + a7*cos(7*(x-v)*w) + b7*sin(7*(x-v)*w) + ...
                a8*cos(8*(x-v)*w) + b8*sin(8*(x-v)*w);
 
-plot(results(2:end,1),results(2:end,2));
-% scatter(x,y,'black'); hold on;
+plot(sqrt(results(1:end,1)),results(1:end,2)); hold on;
+scatter(x,y,'black'); hold off;
 % plot(x, a); hold on;
 % plot(sqrt(results(:,1)),results(:,2)); hold off;
 % grid on;
