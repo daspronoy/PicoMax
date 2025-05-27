@@ -72,7 +72,7 @@ results=unique(rounded_results,"rows");
 
 
 
-a =   -0.0569*0.025;
+a =   -0.0569*0.03;
 b =     -0.2292;
 c =      0.2347;
 bess = @(x) a*(sin(b*x)./((b*x).^2)-cos(c*x)./(c*x));

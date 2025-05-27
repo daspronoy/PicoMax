@@ -132,7 +132,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             
             // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
             // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
-            std::complex<double> VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
+            std::complex<double> VSO_scalar_struct_part = 0.000081 * cos_sum - im * 0.000119 * sin_sum;
             // WARNING: If Lambda_A and sin_sum are both non-zero, the Mathematica formula
             // for VSO might lead to a non-Hermitian Hamiltonian.
             // For Ge, Lambda_A is often zero. For Te, this might need review.
