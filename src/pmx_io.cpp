@@ -49,6 +49,8 @@ void doc(){
         << "-use_uniform_us_so : Use a single value for symmetric SO coupling for all G^2 (flag)\n"
         << "-uniform_us_so_val : The uniform symmetric SO coupling value in Rydbergs (used if -use_uniform_us_so is present)\n"
         << "    ex) -uniform_us_so_val 0.02\n"
+        << "-ua_so : Antisymmetric Spin-Orbit form factors (G^2:value,G^2:value,...)\n"
+        << "    ex) -ua_so 0.565147:0.01232595,1.33333:0.008088216,1.89848:0.006029348\n"
         << "-ua_so_val_g0 : Antisymmetric Spin-Orbit form factor for G^2=0 (single value)\n"
         << "    ex) -ua_so_val_g0 0.0\n"
         << "-encut : energy cutoff [eV]\n"
@@ -393,6 +395,29 @@ void init_mater(inputParser inp, mater &mat){
             std::cerr << "Out of range for -ua_so_val_g0." << std::endl;
         }
     }
+
+    // Parse Antisymmetric SOC parameters Ua_SO_Ry with G^2:value pairs
+    if (inp.existOption("-ua_so")){
+        std::vector<std::string> v_so_a_pairs;
+        v_so_a_pairs = inp.vectorOption("-ua_so"); // comma-separated G^2:value pairs
+        for (const std::string& pair_str : v_so_a_pairs) {
+            std::stringstream ss_pair(pair_str);
+            std::string g2_str, val_str;
+            if (std::getline(ss_pair, g2_str, ':') && std::getline(ss_pair, val_str)) {
+                try {
+                    double g2_key = std::stod(g2_str); // Changed to double to support floating point G^2 values
+                    double val = std::stod(val_str);
+                    mat.Ua_SO_Ry[g2_key] = val;
+                } catch (const std::invalid_argument& ia) {
+                    std::cerr << "Invalid argument for -ua_so pair: " << pair_str << ". Format G^2:value expected." << std::endl;
+                } catch (const std::out_of_range& oor) {
+                    std::cerr << "Out of range for -ua_so pair: " << pair_str << std::endl;
+                }
+            } else {
+                std::cerr << "Invalid format for -ua_so pair: " << pair_str << ". Format G^2:value expected." << std::endl;
+            }
+        }
+    }
 }
 
 
@@ -529,6 +554,14 @@ void printInput(env &dat){
         std::cout << "  G^2 = 0: " << it_ua_g0->second << " Ry\n";
     } else {
         std::cout << "  (Not provided, effectively 0 for G^2=0 and other G^2 values)\n";
+    }
+    std::cout << "Antisymmetric Spin-Orbit form factors (Ua_SO_Ry):" << "\n";
+    if (!dat.mat.Ua_SO_Ry.empty()){
+        for(const auto& pair : dat.mat.Ua_SO_Ry){
+            std::cout << "  G^2 = " << pair.first << ": " << pair.second << " Ry\n";
+        }
+    } else {
+        std::cout << "  (Not provided or default values used)\n";
     }
     std::cout << "atomic basis vectors:\n";
     for (int i=0; i<NATOM; i++){

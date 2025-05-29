@@ -107,14 +107,14 @@ for h = 0:4
     end
 end
 results          = sortrows(results);
-rounded_results  = round(results , 10);
+rounded_results  = round(results , 12);
 results          = unique(rounded_results , 'rows');
 
 %  Duplicate V(G) three times as per your solver's (|G|²,V,V,V) layout ----
 output = cat(1 , results(2:end,1) , results(2:end,2) , ...
                    results(2:end,2) , results(2:end,2) );
 
-fprintf('\noutput: [%s]\n\n', join(string(output), ','));
+fprintf('\n %s\n\n', join(string(output), ','));
 
 %% ---------------- VISUAL CHECK ----------------------------------------
 figure(1);  clf;

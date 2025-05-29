@@ -21,7 +21,7 @@ namespace pmx{
 // Helper to get SOC form factor; returns value in Ry
 // q_sq_norm_dimless is |G'-G|^2, where G vectors are dimensionless (multiples of 2*pi/a)
 double get_soc_form_factor(const std::map<double, double>& so_map, double q_sq_norm_dimless) {
-    double tol = 1e-3; // Tolerance for matching q_sq_norm
+    double tol = 1e-2; // Tolerance for matching q_sq_norm
     // The keys in so_map are doubles like 0.565147, 1.33333, etc.
     // We search for the closest key in the map.
     if (std::abs(q_sq_norm_dimless) < tol) {
@@ -110,7 +110,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             }
             double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
             double lambda_S_eV = lambda_S_Ry * Ry2eV; // Ry2eV is global
-            double lambda_A_eV = lambda_A_Ry * Ry2eV;
+            double lambda_A_eV = lambda_A_Ry * Ry2eV;  // there is a scale factor for SOC in eV for easy parameter tuning
 
             // Structure factor part for SOC
             double cos_sum = 0.0;
@@ -132,7 +132,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             
             // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
             // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
-            std::complex<double> VSO_scalar_struct_part = 0.000081 * cos_sum - im * 0.000119 * sin_sum;
+            std::complex<double> VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
             // WARNING: If Lambda_A and sin_sum are both non-zero, the Mathematica formula
             // for VSO might lead to a non-Hermitian Hamiltonian.
             // For Ge, Lambda_A is often zero. For Te, this might need review.
@@ -142,7 +142,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
             Eigen::Vector3d soc_kinematic_vec = Kj_dimless.cross(Ki_dimless);
 
             // SOC vector potential (purely imaginary based on Mathematica -I * real_scalar * real_vector)
-            Eigen::Vector3cd SO_vec_potential = -im * VSO_scalar_struct_part * soc_kinematic_vec.cast<std::complex<double>>();
+            Eigen::Vector3cd SO_vec_potential = im*VSO_scalar_struct_part * soc_kinematic_vec.cast<std::complex<double>>();
 
             // SOC 2x2 block: SO_vec_potential . sigma_vec
             Eigen::Matrix2cd H_soc_2x2_block = 
@@ -180,7 +180,7 @@ Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::
 */
 std::complex<double> pseudopotential(
         Eigen::Vector3d G_diff, std::vector<Eigen::Vector3d> T_atomic_pos, pmx::mater mat_params){
-    double tol = 1e-3;
+    double tol = 1e-2;
     double GMAG_sq = G_diff.squaredNorm(); // This G_diff is G_i - G_j
     int form_factor_idx = -1; // Index for mat_params.vg
 
