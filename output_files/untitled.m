@@ -1,4 +1,4 @@
-filename = ['temp.dat'];
+filename = ['temp2.dat'];
 fid = fopen(filename);
 data= fread(fid,'double');
 fclose(fid);
