@@ -40,10 +40,7 @@
     ============================================================================
 */
 
-/*
-    INCLUDE FILES
-    =============
-*/
+
 #include "pmx_chi.hpp"      // Function declarations for susceptibility calculations
 #include "pmx_epm.hpp"      // Empirical pseudopotential method Hamiltonian
 #include "pmx_basis.hpp"    // Basis set and G-vector utilities
