@@ -445,7 +445,7 @@ void chi_LL(env &dat){
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
                                     oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
                                 }}
-                            }//loop over p
+                            }
                         }//loop over v
                     }//loop over c
                 }//loop over i
@@ -556,16 +556,16 @@ void chi_LL(env &dat){
         }
         
 
-        // free dynamically allocated memory
-        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int c=0; c<NBAND_C[k]; c++){
-            delete [] oint[k][i][m][c];
-        }}}}
-        for (int k=0; k<NKPT; k++){
-            for (int v=0; v<NBAND_V[k]; v++){
-                delete [] C_kq[k][v];
-            }
-            delete [] C_kq[k];
-        }
+        // // free dynamically allocated memory
+        // for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int c=0; c<NBAND_C[k]; c++){
+        //     delete [] oint[k][i][m][c];
+        // }}}}
+        // for (int k=0; k<NKPT; k++){
+        //     for (int v=0; v<NBAND_V[k]; v++){
+        //         delete [] C_kq[k][v];
+        //     }
+        //     delete [] C_kq[k];
+        // }
     }// loop q
 
     // free dynamically allocated memory
@@ -830,16 +830,16 @@ void chi_tensor(env &dat){
         }
         
 
-        // free dynamically allocated memory
-        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int v=0; v<NBAND_V[k]; v++){
-            delete [] oint[k][i][m][v];
-        }}}}
-        for (int k=0; k<NKPT; k++){
-            for (int c=0; c<NBAND_C[k]; c++){
-                delete [] C_kq[k][c];
-            }
-            delete [] C_kq[k];
-        }
+        // // free dynamically allocated memory
+        // for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int v=0; v<NBAND_V[k]; v++){
+        //     delete [] oint[k][i][m][v];
+        // }}}}
+        // for (int k=0; k<NKPT; k++){
+        //     for (int c=0; c<NBAND_C[k]; c++){
+        //         delete [] C_kq[k][c];
+        //     }
+        //     delete [] C_kq[k];
+        // }
     }// loop q
 
     // free dynamically allocated memory
