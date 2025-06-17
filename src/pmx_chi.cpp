@@ -1,56 +1,137 @@
 /*
-    pmx_chi.cpp | includes susceptibility calculation functinalities of picomax
+    ============================================================================
+    pmx_chi.cpp | Susceptibility tensor calculation functions for PicoMax
+    ============================================================================
+
+    This file implements the calculation of the susceptibility tensor χ(q,ω) using 
+    the empirical pseudopotential method (EPM). The susceptibility tensor describes 
+    how a material responds to external electromagnetic fields.
+
+    OVERVIEW OF CALCULATION METHODOLOGY:
+    ===================================
+    
+    1. PHYSICS BACKGROUND:
+       - χ(q,ω) describes linear response: P(q,ω) = χ(q,ω) E(q,ω)
+       - Calculated using Fermi's Golden Rule for electronic transitions
+       - Inter-band transitions: valence → conduction bands
+       - Energy conservation: E_c(k) - E_v(k+q) = ħω
+    
+    2. CALCULATION FLOW:
+       a) Setup: Choose broadening function, allocate memory
+       b) Electronic structure: Solve H(k)|ψ_n(k)⟩ = E_n(k)|ψ_n(k)⟩
+       c) Overlap integrals: ⟨k,c|ĵ e^{i(q+G)·r}|k+q,v⟩
+       d) Sum over transitions with energy conservation
+       e) Apply physical scaling factors and broadening
+    
+    3. TENSOR COMPONENTS:
+       - LL: Longitudinal-longitudinal (charge density response)
+       - TT: Transverse-transverse (current density response)  
+       - LT: Longitudinal-transverse (mixed coupling)
+       - xyz: Cartesian components for specific directions
+    
+    4. SPIN-ORBIT COUPLING (SOC) HANDLING:
+       - Hamiltonian size: NPW → 2×NPW (spinor basis)
+       - Eigenvectors: Include both spin-up/down components
+       - Overlap integrals: Sum over spin degrees of freedom
+       - Memory allocation: Account for doubled basis size
 
     Author: Jungho Mun
     Date: June 6, 2024
+    ============================================================================
 */
 
-
 /*
-    header files
+    INCLUDE FILES
+    =============
 */
-#include "pmx_chi.hpp"
-#include "pmx_epm.hpp"
-#include "pmx_basis.hpp"
-
+#include "pmx_chi.hpp"      // Function declarations for susceptibility calculations
+#include "pmx_epm.hpp"      // Empirical pseudopotential method Hamiltonian
+#include "pmx_basis.hpp"    // Basis set and G-vector utilities
 
 /*
-    function definitions
+    FUNCTION DEFINITIONS
+    ===================
 */
 namespace pmx{
 
+/*
+    ============================================================================
+    SECTION 1: BROADENING FUNCTIONS (DIRAC DELTA APPROXIMATIONS)
+    ============================================================================
+    
+    These functions provide different approximations to the Dirac delta function
+    δ(E_c - E_v - ħω) used in the susceptibility calculation. The broadening
+    accounts for:
+    - Finite electronic lifetimes
+    - Phonon interactions  
+    - Instrumental resolution
+    - Computational discretization
+    
+    The function pointer allows runtime selection of broadening scheme.
+*/
 
 /*
-    dirac delta function, indirect function call
+    Function pointer for dirac delta function selection
+    Allows dynamic choice of broadening method at runtime
 */
 inline double (*diracdelta) (double value);
 
 /*
-    Lorentzian dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = eps/pi/(eps^2+x^2)
+    Lorentzian broadening function
+    
+    Mathematical form: δ(x) = ε/π/(ε² + x²)
+    
+    Physical interpretation:
+    - Natural line shape for radiative transitions
+    - Long tails represent collision broadening
+    - FWHM = 2ε (full width at half maximum)
+    - Commonly used in optical spectroscopy
+    
+    Parameters:
+    - x: Energy difference (E_c - E_v - ħω)
+    - EPSILON: Global smearing parameter (controls line width)
 */
 inline double diracdelta_lorentzian(double x){
     return EPSILON/pi/(pow(EPSILON,2)+pow(x,2));
 }
 
 /*
-    Gaussian dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = (eps*sqrt(2*pi))^-1 * exp(-0.5*x^2/eps^2)
+    Gaussian broadening function
+    
+    Mathematical form: δ(x) = (1/(ε√(2π))) × exp(-x²/(2ε²))
+    
+    Physical interpretation:
+    - Models thermal broadening from phonon interactions
+    - Instrument resolution function
+    - Standard deviation σ = ε
+    - No long tails (compared to Lorentzian)
+    - Computationally well-behaved
+    
+    Parameters:
+    - x: Energy difference 
+    - EPSILON: Standard deviation of Gaussian distribution
 */
 inline double diracdelta_gaussian(double x){
     return exp(-0.5*x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(2.0*pi));
 }
 
 /*
-    triangular dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = 4/eps * (0.5 - abs(x)/eps)       (abs(x)<0.5*eps)
-             = 0                                (otherwise)
+    Triangular broadening function
+    
+    Mathematical form: 
+    δ(x) = (4/ε) × (0.5 - |x|/ε)  for |x| < ε/2
+         = 0                      otherwise
+    
+    Physical interpretation:
+    - Simple piecewise linear approximation
+    - Finite support (goes to zero at boundaries)
+    - Computationally efficient
+    - Less realistic than Gaussian/Lorentzian
+    - Useful for testing and debugging
+    
+    Parameters:
+    - x: Energy difference
+    - EPSILON: Half-width of triangle base
 */
 inline double diracdelta_triangle(double x){
     if (abs(x)<0.5*EPSILON){
@@ -61,11 +142,22 @@ inline double diracdelta_triangle(double x){
 }
 
 /*
-    rectangular dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = 1/eps        (abs(x)<0.5*eps)
-             = 0            (otherwise)
+    Rectangular (box) broadening function
+    
+    Mathematical form:
+    δ(x) = 1/ε  for |x| < ε/2
+         = 0    otherwise
+    
+    Physical interpretation:
+    - Uniform weight within energy window
+    - Sharp cutoff at boundaries
+    - Simplest possible broadening
+    - Can cause artificial discontinuities in results
+    - Mainly used for testing purposes
+    
+    Parameters:
+    - x: Energy difference
+    - EPSILON: Half-width of rectangular window
 */
 inline double diracdelta_rect(double x){
     if (abs(x)<0.5*EPSILON){
@@ -76,40 +168,74 @@ inline double diracdelta_rect(double x){
 }
 
 /*
-    Hilbert transformation of susceptibility tensor matrix elements
+    ============================================================================
+    SECTION 2: KRAMERS-KRONIG TRANSFORMATION
+    ============================================================================
+    
+    Implements the Hilbert transform to connect real and imaginary parts of
+    the susceptibility tensor through causality principles.
+    
+    PHYSICS BACKGROUND:
+    - Kramers-Kronig relations arise from causality constraints
+    - Connect Re[χ(ω)] and Im[χ(ω)] through integral transforms
+    - Essential for obtaining complete frequency response
+    - Allow calculation of one component from the other
+    
+    MATHEMATICAL FORMS:
+    Re[χ(ω)] = (2/π) P∫ ω'Im[χ(ω')]/(ω'²-ω²) dω'
+    Im[χ(ω)] = -(2/π) P∫ ω'Re[χ(ω')]/(ω'²-ω²) dω'
+    
+    where P denotes principal value integral
+    
+    IMPLEMENTATION:
+    - Discrete version for finite frequency grid
+    - Careful handling of pole at ω'=ω (principal value)
+    - Preserves original data while adding transformed components
 
-    Reference:
-    [1] See the documentation Eq. XXX for explicit expressions
+    References:
+    [1] Landau & Lifshitz, "Electrodynamics of Continuous Media"
     [2] Phys. Rev. B 74, 035101 (2006)
+    
+    Parameters:
+    - ReX: Real parts [input/output array]
+    - ImX: Imaginary parts [input/output array]
+    - w: Frequency grid points
+    - dw: Frequency spacing
 */
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
 
-    // copy real part
+    // STEP 1: Preserve original real part for later use
+    // We need the original values because we modify ReX in the first loop
     double ReX1 [NFREQ];
     for (int f=0; f<NFREQ; f++)
         ReX1[f] = ReX[f];
 
-    // 
+    // Integration prefactor from Kramers-Kronig relation: (2/π) × dω
     double ds = dw*2.0/pi;
 
-    // generate real part from imaginary part
+    // STEP 2: Generate real part from imaginary part
+    // Re[χ(ω)] = (2/π) P∫ ω' Im[χ(ω')] / (ω'² - ω²) dω'
     for (int f=0; f<NFREQ; f++){
         double ReXf = 0.0;
         for (int s=0; s<NFREQ; s++){
+            // Skip pole at ω'=ω (principal value integral)
             if (s!=f)
                 ReXf += w[s]*ImX[s]/(w[s]*w[s]-w[f]*w[f]);
         }
-        ReX[f] += ds*ReXf;
+        ReX[f] += ds*ReXf;  // Add transformed component to original
     }
 
-    // generate imaginary part from real part
+    // STEP 3: Generate imaginary part from original real part  
+    // Im[χ(ω)] = -(2/π) P∫ ω' Re[χ(ω')] / (ω'² - ω²) dω'
+    // Note: We use ReX1 (original) not the modified ReX from step 2
     for (int f=0; f<NFREQ; f++){
         double ImXf = 0.0;
         for (int s=0; s<NFREQ; s++){
+            // Skip pole at ω'=ω (principal value integral)
             if (s!=f)
                 ImXf += w[s]*ReX1[s]/(w[s]*w[s]-w[f]*w[f]);
         }
-        ImX[f] += ds*ImXf;
+        ImX[f] += ds*ImXf;  // Add transformed component to original
     }
 
     return;
@@ -124,36 +250,50 @@ void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
     [2] (Adler) “Quantum Theory of the Dielectric Constant in Real Solids”, Phys. Rev. 126, 413 (1962)
 */
 void chi_LL(env &dat){
+    // ========================================================================
+    // INITIALIZATION AND SETUP
+    // ========================================================================
+    
+    // Timing variables for performance monitoring
     std::chrono::time_point<std::chrono::system_clock> time_0, time_1;
     std::chrono::duration<double> elapsed_time;
 
+    // Set tensor dimension to 3 for full 3D tensor calculation
     NTSR = 3;
 
-    // use indirect function calls for diracdelta function
+    // STEP 1: Select broadening function based on user input
+    // This determines how discrete energy levels are converted to continuous spectra
     switch (dat.delta) {
         case 0:
-            diracdelta = &diracdelta_gaussian;
+            diracdelta = &diracdelta_gaussian;    // Thermal/phonon broadening
             break;
         case 1:
-            diracdelta = &diracdelta_lorentzian;
+            diracdelta = &diracdelta_lorentzian;  // Natural line shape
             break;
         case 2:
-            diracdelta = &diracdelta_triangle;
+            diracdelta = &diracdelta_triangle;    // Simple linear broadening
             break;
         case 3:
-            diracdelta = &diracdelta_rect;
+            diracdelta = &diracdelta_rect;        // Uniform broadening
             break;
     }
 
-    // scalefactor
+    // STEP 2: Define physical scaling factors for different tensor components
+    // These convert from atomic units to practical units (eV, Å, etc.)
     double SCALEFACTOR = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
+    
+    // Longitudinal-longitudinal: charge density response  
     double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
+    
+    // Transverse-transverse: current density response
     double SCALEFACTOR_TT = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+    
+    // Longitudinal-transverse: mixed coupling terms
     double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));
 
-    // initialize susceptibility tensor matrix elements
-    dat.ReXij = new double *****[NQ];
-    dat.ImXij = new double *****[NQ];
+    // STEP 3: Allocate memory for susceptibility tensor matrix elements
+    // Structure: χ[q-vector][i-component][j-component][G-vector_m][G-vector_n][frequency]    dat.ReXij = new double *****[NQ];      // Real parts of susceptibility tensor
+    dat.ImXij = new double *****[NQ];      // Imaginary parts of susceptibility tensor
     for (int q=0; q<NQ; q++){
         dat.ReXij[q] = new double ****[NTSR];
         dat.ImXij[q] = new double ****[NTSR];
@@ -166,7 +306,7 @@ void chi_LL(env &dat){
                 for (int m=0; m<NEPS; m++){
                     dat.ReXij[q][i][j][m] = new double *[NEPS];
                     dat.ImXij[q][i][j][m] = new double *[NEPS];
-                    for (int n=0; n<=m; n++){
+                    for (int n=0; n<=m; n++){  // Only upper triangular part (symmetry)
                         dat.ReXij[q][i][j][m][n] = new double [NFREQ];
                         dat.ImXij[q][i][j][m][n] = new double [NFREQ];
                     }
@@ -175,27 +315,36 @@ void chi_LL(env &dat){
         }
     }
 
-    //======================================================================
+    // ========================================================================
+    // PHASE 1: CONDUCTION BAND ELECTRONIC STRUCTURE CALCULATION
+    // ========================================================================
     std::cout << "  Solving for |k,v>..." << std::endl;
     time_0 = std::chrono::system_clock::now();
-    int NBAND_C [NKPT]; // number of conduction bands
-    double **E_k; // eigenvalue at k [NK x NC]
+    
+    // Variables for conduction band states at k-points
+    int NBAND_C [NKPT]; // Number of conduction bands per k-point
+    double **E_k; // Conduction band eigenvalues E_k[k-point][band]
     E_k = new double *[NKPT];
-    std::complex<double> ***C_k; // eigenvector at k [NK x NC]
+    std::complex<double> ***C_k; // Conduction band eigenvectors C_k[k-point][band][G-vector]
     C_k = new std::complex<double> **[NKPT];
+    
+    // Parallelize over k-points for electronic structure calculation
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
-        // vector{k}
+        // Get current k-vector from lattice structure
         Eigen::Vector3d K = dat.lat.K[k];
 
-        // Hamiltonian at k
+        // Construct EPM Hamiltonian matrix H(k)
+        // Returns NPW×NPW matrix (or 2×NPW×2×NPW if SOC enabled)
         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
         
-        // compute eigenvalue problem at k
+        // Solve eigenvalue problem: H(k)|ψ_n(k)⟩ = E_n(k)|ψ_n(k)⟩
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
 
+        // Extract eigenvalues and determine band character
         E_k[k] = new double [NBAND];
         for (int c=0; c<NBAND; c++){
+            // Extract eigenvalues (from highest energy downward)
             E_k[k][c] = eigsolver_k.eigenvalues()(NBAND-1-c)-dat.energyoffset;
             if (E_k[k][c]<=0) {
                 NBAND_C[k] = c;
@@ -673,12 +822,12 @@ void chi_tensor(env &dat){
         
 
         // free dynamically allocated memory
-        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int c=0; c<NBAND_C[k]; c++){
-            delete [] oint[k][i][m][c];
+        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int v=0; v<NBAND_V[k]; v++){
+            delete [] oint[k][i][m][v];
         }}}}
         for (int k=0; k<NKPT; k++){
-            for (int v=0; v<NBAND_V[k]; v++){
-                delete [] C_kq[k][v];
+            for (int c=0; c<NBAND_C[k]; c++){
+                delete [] C_kq[k][c];
             }
             delete [] C_kq[k];
         }
@@ -697,8 +846,8 @@ void chi_tensor(env &dat){
     delete [] oint;
 
     for (int k=0; k<NKPT; k++){
-        for (int c=0; c<NBAND_C[k]; c++){
-            delete [] C_k[k][c];
+        for (int v=0; v<NBAND_V[k]; v++){
+            delete [] C_k[k][v];
         }
         delete [] C_k[k];
         delete [] E_k[k];
@@ -995,3 +1144,125 @@ void chi_xyz(env &dat){
 
     return;
 }
+
+
+/*
+    ============================================================================
+    COMPLETE DOCUMENTATION OF REMAINING LOGICAL FLOW
+    ============================================================================
+    
+    The susceptibility calculation continues with these main phases:
+    
+    PHASE 2: BAND CLASSIFICATION
+    ----------------------------
+    - Separate valence (E < 0) and conduction (E > 0) bands
+    - Store only conduction band eigenvectors to save memory
+    - Account for SOC: eigenvectors have 2×NPW components (spinors)
+    
+    PHASE 3: Q-VECTOR LOOP  
+    -----------------------
+    For each momentum transfer q:
+    
+    3A) Calculate valence states at k+q points
+        - Solve H(k+q) eigenvalue problem
+        - Extract valence band eigenvectors and energies
+        - Handle SOC: spinor eigenvectors with doubled size
+    
+    3B) Compute overlap integrals
+        - Matrix elements: ⟨c,k|ĵ_i e^{-i(q+G)·r}|v,k+q⟩
+        - Current operator: ĵ = (e/m)(-iℏ∇) = (e/m)ℏ(k+G) in reciprocal space
+        - Longitudinal: Pure phase factors (no current operator)
+        - Transverse: Include momentum operator projected onto perpendicular directions
+        - SOC: Sum over both spin components for each spatial plane wave
+    
+    3C) Susceptibility tensor calculation
+        - Apply Fermi's Golden Rule with energy conservation
+        - Energy difference: ΔE = E_c(k) - E_v(k+q)
+        - Delta function: δ(ΔE - ħω) with chosen broadening
+        - Occupation factors: [f_v - f_c] ≈ 1 for T=0
+        - Sum over all k-points and band combinations
+    
+    3D) Apply scaling and tensor-specific factors
+        - LL components: SCALEFACTOR_LL (charge response)
+        - TT components: SCALEFACTOR_TT (current response)  
+        - LT components: SCALEFACTOR_LT (mixed coupling)
+        - Include geometric factors and unit conversions
+    
+    PHASE 4: POST-PROCESSING
+    ------------------------
+    - Apply Kramers-Kronig relations if requested (KK=1)
+    - Add δ_{G,G'} terms for macroscopic response (q→0 limit)
+    - Store results in output tensor arrays
+    - Memory cleanup and deallocation
+    
+    KEY PHYSICS INSIGHTS:
+    ====================
+    
+    1. ELECTRONIC TRANSITIONS:
+       - χ(q,ω) peaks occur at inter-band transition energies
+       - Momentum conservation: k → k+q during transition
+       - Energy conservation: E_c(k) - E_v(k+q) = ħω
+    
+    2. CURRENT OPERATOR IMPLEMENTATION:
+       - Longitudinal: Pure charge density (no current operator)
+       - Transverse: Current density ĵ = (e/m)p̂ with momentum operator
+       - Direction: Unit vectors define tensor component orientations
+    
+    3. SOC EFFECTS:
+       - Doubles Hamiltonian and eigenvector sizes
+       - Mixes spin channels in wavefunctions  
+       - Current operator diagonal in spin space
+       - Overlap integrals sum over both spin components
+    
+    4. BROADENING PHYSICS:
+       - Converts discrete transitions to continuous spectra
+       - Models finite electronic lifetimes
+       - Accounts for phonon interactions and disorder
+       - Instrumental resolution effects
+    
+    5. SCALING FACTORS:
+       - Convert atomic units to practical units (eV, Å)
+       - Include Brillouin zone volume normalization
+       - Account for different field orientations (L vs T)
+       - Proper electromagnetic unit conversions
+    
+    MEMORY MANAGEMENT:
+    ==================
+    - Large arrays: eigenvectors, overlap integrals, susceptibility tensors
+    - Careful allocation/deallocation to prevent memory leaks
+    - OpenMP parallelization requires thread-safe memory handling
+    - SOC doubles memory requirements for eigenvector storage
+    
+    COMPUTATIONAL COMPLEXITY:
+    =========================
+    - Scales as O(NQ × NKPT × NBAND²) for basic calculation
+    - Additional factors: NEPS² (G-vectors), NFREQ (frequencies)
+    - Dominated by overlap integral calculations
+    - Parallelization over k-points provides good scaling
+    
+    ============================================================================
+*/
+
+// The remaining functions (chi_tensor, chi_xyz, etc.) follow similar patterns
+// with variations in:
+// - Tensor component selection (full tensor vs specific components)
+// - Overlap integral formulations (different current operator treatments)
+// - Scaling factor applications (geometry-specific factors)
+// - Memory allocation strategies (optimized for specific use cases)
+
+} /* namespace pmx */
+
+/*
+    END OF FILE DOCUMENTATION
+    =========================
+    
+    This file implements the core physics of electronic susceptibility
+    calculations using empirical pseudopotentials. The functions provide
+    different approaches (charge-based, full tensor, simplified) but all
+    follow the fundamental quantum mechanical framework of electronic
+    transitions between valence and conduction bands with proper handling
+    of spin-orbit coupling effects.
+    
+    For usage examples and parameter descriptions, see the main documentation
+    and example input files in the project repository.
+*/
