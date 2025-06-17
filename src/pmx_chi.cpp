@@ -350,8 +350,9 @@ void chi_LL(env &dat){
         }
         C_k[k] = new std::complex<double> *[NBAND_C[k]];
         for (int c=0; c<NBAND_C[k]; c++){
-            C_k[k][c] = new std::complex<double> [NPW];
-            for (int p=0; p<NPW; p++){
+            const int NPW_SOC = 2 * NPW;
+            C_k[k][c] = new std::complex<double> [NPW_SOC];
+            for (int p=0; p<NPW_SOC; p++){
                 C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
             }// loop over p
         }// loop over c
@@ -410,8 +411,9 @@ void chi_LL(env &dat){
             }
             C_kq[k] = new std::complex<double> *[NBAND_V[k]];
             for (int v=0; v<NBAND_V[k]; v++){
-                C_kq[k][v] = new std::complex<double> [NPW];
-                for (int p=0; p<NPW; p++){
+                const int NPW_SOC = 2 * NPW;
+                C_kq[k][v] = new std::complex<double> [NPW_SOC];
+                for (int p=0; p<NPW_SOC; p++){
                     C_kq[k][v][p] = eigsolver_kq.eigenvectors().col(v)(p);
                 }
             }
@@ -426,14 +428,24 @@ void chi_LL(env &dat){
                             oint[k][i][m][c][v] = 0;
                             if (i==0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
-                                    oint[k][i][m][c][v] += (conj(C_k[k][c][p]) * C_kq[k][v][dat.lat.loci[m][p]]);
+                                    int loci_p = dat.lat.loci[m][p];
+                                    // Sum over spin-up and spin-down components
+                                    // Spin-up: index 2*p and 2*loci_p
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    // Spin-down: index 2*p+1 and 2*loci_p+1
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                 }}
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
-                                    oint[k][i][m][c][v] += (conj(C_k[k][c][p]) * C_kq[k][v][dat.lat.loci[m][p]]) 
-                                                * (uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2));
+                                    int loci_p = dat.lat.loci[m][p];
+                                    std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
+                                    // Sum over spin-up and spin-down components
+                                    // Spin-up: index 2*p and 2*loci_p
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
+                                    // Spin-down: index 2*p+1 and 2*loci_p+1
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
                                 }}
-                            }
+                            }//loop over p
                         }//loop over v
                     }//loop over c
                 }//loop over i
