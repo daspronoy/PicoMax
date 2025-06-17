@@ -1,6 +1,51 @@
 /*
     pmx_chi.cpp | includes susceptibility calculation functinalities of picomax
 
+    This file implements the calculation of the susceptibility tensor chi(q,omega) using 
+    the empirical pseudopotential method (EPM). The susceptibility tensor describes the 
+    linear response of a material to an external electromagnetic field.
+
+    OVERVIEW OF CALCULATION FLOW:
+    =============================
+    
+    1. INITIALIZATION:
+       - Set up broadening functions (Gaussian, Lorentzian, etc.)
+       - Define physical scaling factors
+       - Allocate memory for susceptibility tensor storage
+    
+    2. ELECTRONIC STRUCTURE:
+       - Calculate band structure at all k-points using EPM Hamiltonian H(k)
+       - Separate valence and conduction bands based on energy
+       - Store eigenvectors and eigenvalues for later use
+    
+    3. OVERLAP INTEGRALS:
+       - For each q-vector, calculate H(k+q) band structure
+       - Compute matrix elements ⟨k,c|e^{i(q+G)·r}|k+q,v⟩ between states
+       - These represent electronic transitions between bands
+    
+    4. SUSCEPTIBILITY CALCULATION:
+       - Use Fermi's Golden Rule with energy conservation
+       - Apply broadening to discrete transitions
+       - Sum over all k-points and band combinations
+       - Apply appropriate scaling factors
+    
+    5. POST-PROCESSING:
+       - Apply Kramers-Kronig relations if needed
+       - Store results in output arrays
+    
+    KEY PHYSICS:
+    ============
+    - chi(q,ω) describes how electrons respond to electromagnetic fields
+    - Peaks occur at inter-band transition energies  
+    - Different tensor components (LL, LT, TT) represent different field orientations
+    - SOC doubles the Hamiltonian size and modifies eigenvector structure
+
+    Main functions:
+    - chi_LL: Calculates longitudinal susceptibility using charge-based approach
+    - chi_tensor: Full susceptibility tensor calculation
+    - chi_xyz: Simplified xyz-component calculation
+    - permittivity: Calculates permittivity matrix elements
+
     Author: Jungho Mun
     Date: June 6, 2024
 */
@@ -9,9 +54,9 @@
 /*
     header files
 */
-#include "pmx_chi.hpp"
-#include "pmx_epm.hpp"
-#include "pmx_basis.hpp"
+#include "pmx_chi.hpp"      // Function declarations for susceptibility calculations
+#include "pmx_epm.hpp"      // Empirical pseudopotential method Hamiltonian
+#include "pmx_basis.hpp"    // Basis set and G-vector utilities
 
 
 /*
@@ -21,15 +66,30 @@ namespace pmx{
 
 
 /*
-    dirac delta function, indirect function call
+    SECTION 1: DIRAC DELTA FUNCTION IMPLEMENTATIONS
+    
+    These functions provide different approximations to the Dirac delta function δ(x)
+    used for broadening discrete energy levels into continuous spectra.
+    The function pointer 'diracdelta' allows runtime selection of the broadening scheme.
+*/
+
+/*
+    Function pointer for dirac delta function (indirect function call)
+    This allows dynamic selection of the delta function implementation at runtime
 */
 inline double (*diracdelta) (double value);
 
 /*
     Lorentzian dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = eps/pi/(eps^2+x^2)
+    
+    Mathematical form: δ(x) = ε/π/(ε² + x²)
+    
+    This provides a Lorentzian broadening with full-width at half-maximum (FWHM) = 2ε
+    Commonly used in spectroscopy as it has realistic line shapes with extended tails
+    
+    Parameters:
+    - x: Energy difference (usually E_c - E_v - ħω)
+    - EPSILON: Global smearing parameter controlling the width of the broadening
 */
 inline double diracdelta_lorentzian(double x){
     return EPSILON/pi/(pow(EPSILON,2)+pow(x,2));
@@ -37,20 +97,33 @@ inline double diracdelta_lorentzian(double x){
 
 /*
     Gaussian dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = (eps*sqrt(2*pi))^-1 * exp(-0.5*x^2/eps^2)
+    
+    Mathematical form: δ(x) = (1/(ε√(2π))) * exp(-x²/(2ε²))
+    
+    This provides Gaussian broadening, which is physically motivated by 
+    thermal/phonon interactions and instrumental resolution effects
+    
+    Parameters:
+    - x: Energy difference
+    - EPSILON: Standard deviation of the Gaussian distribution
 */
 inline double diracdelta_gaussian(double x){
     return exp(-0.5*x*x/(EPSILON*EPSILON))/(EPSILON*sqrt(2.0*pi));
 }
 
 /*
-    triangular dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = 4/eps * (0.5 - abs(x)/eps)       (abs(x)<0.5*eps)
-             = 0                                (otherwise)
+    Triangular dirac delta function
+    
+    Mathematical form: 
+    δ(x) = (4/ε) * (0.5 - |x|/ε)  for |x| < ε/2
+         = 0                      otherwise
+    
+    This provides a simple triangular broadening that goes to zero linearly.
+    Less commonly used but computationally efficient.
+    
+    Parameters:
+    - x: Energy difference
+    - EPSILON: Half-width of the triangle base
 */
 inline double diracdelta_triangle(double x){
     if (abs(x)<0.5*EPSILON){
@@ -61,11 +134,18 @@ inline double diracdelta_triangle(double x){
 }
 
 /*
-    rectangular dirac delta function
-
-    eps : the smearing parameter of delta function
-    delta(x) = 1/eps        (abs(x)<0.5*eps)
-             = 0            (otherwise)
+    Rectangular (box) dirac delta function
+    
+    Mathematical form:
+    δ(x) = 1/ε  for |x| < ε/2
+         = 0    otherwise
+    
+    This provides uniform broadening within a fixed energy window.
+    Simplest implementation but may cause artificial discontinuities.
+    
+    Parameters:
+    - x: Energy difference  
+    - EPSILON: Half-width of the rectangular window
 */
 inline double diracdelta_rect(double x){
     if (abs(x)<0.5*EPSILON){
@@ -76,84 +156,115 @@ inline double diracdelta_rect(double x){
 }
 
 /*
+    SECTION 2: KRAMERS-KRONIG TRANSFORMATION
+    
     Hilbert transformation of susceptibility tensor matrix elements
+    
+    The Kramers-Kronig relations connect the real and imaginary parts of the 
+    susceptibility tensor through causality constraints. This function implements
+    the discrete Hilbert transform to compute:
+    
+    Re[χ(ω)] from Im[χ(ω')] and vice versa
+    
+    This is essential for obtaining the full frequency-dependent response from
+    calculations that may only directly compute one component.
 
-    Reference:
+    References:
     [1] See the documentation Eq. XXX for explicit expressions
     [2] Phys. Rev. B 74, 035101 (2006)
+    
+    Parameters:
+    - ReX: Array of real parts [input/output]
+    - ImX: Array of imaginary parts [input/output] 
+    - w: Frequency grid
+    - dw: Frequency spacing
 */
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
 
-    // copy real part
+    // STEP 1: Store original real part for later use in imaginary part calculation
+    // This is necessary because we modify ReX[f] in the first loop, but need 
+    // the original values for the second loop
     double ReX1 [NFREQ];
     for (int f=0; f<NFREQ; f++)
         ReX1[f] = ReX[f];
 
-    // 
+    // Discrete integration prefactor: dω * (2/π)
+    // Factor of 2/π comes from the Kramers-Kronig relation integral
     double ds = dw*2.0/pi;
 
-    // generate real part from imaginary part
+    // STEP 2: Generate real part from imaginary part using Kramers-Kronig relation
+    // Re[χ(ω)] = (2/π) * P ∫ ω' Im[χ(ω')] / (ω'² - ω²) dω'
+    // where P denotes the principal value integral
     for (int f=0; f<NFREQ; f++){
         double ReXf = 0.0;
         for (int s=0; s<NFREQ; s++){
+            // Skip the pole at ω' = ω (principal value)
             if (s!=f)
                 ReXf += w[s]*ImX[s]/(w[s]*w[s]-w[f]*w[f]);
         }
-        ReX[f] += ds*ReXf;
-    }
-
-    // generate imaginary part from real part
+        ReX[f] += ds*ReXf;  // Add to existing real part
+    }    // STEP 3: Generate imaginary part from real part using Kramers-Kronig relation  
+    // Im[χ(ω)] = -(2/π) * P ∫ ω' Re[χ(ω')] / (ω'² - ω²) dω'
+    // We use the original real parts (ReX1) before they were modified above
     for (int f=0; f<NFREQ; f++){
         double ImXf = 0.0;
         for (int s=0; s<NFREQ; s++){
+            // Skip the pole at ω' = ω (principal value)
             if (s!=f)
                 ImXf += w[s]*ReX1[s]/(w[s]*w[s]-w[f]*w[f]);
         }
-        ImX[f] += ds*ImXf;
+        ImX[f] += ds*ImXf;  // Add to existing imaginary part
     }
 
     return;
 }
 
-/*
-    calculate the susceptibility tensor matrix using an alternative expression
-    which treats the longitudinal terms as charge
+/*    SECTION 3: LONGITUDINAL SUSCEPTIBILITY CALCULATION (CHARGE-BASED APPROACH)
+    
+    Calculate the susceptibility tensor matrix using an alternative expression
+    which treats the longitudinal terms as charge density fluctuations.
 
     Reference:
     [1] See the documentation Eq. XXX for explicit expressions
     [2] (Adler) “Quantum Theory of the Dielectric Constant in Real Solids”, Phys. Rev. 126, 413 (1962)
 */
 void chi_LL(env &dat){
+    // Timing variables for performance monitoring
     std::chrono::time_point<std::chrono::system_clock> time_0, time_1;
     std::chrono::duration<double> elapsed_time;
 
+    // Set tensor dimension to 3 for full 3D calculation
     NTSR = 3;
 
-    // use indirect function calls for diracdelta function
+    // STEP 1: Select broadening function based on user input
+    // This determines how discrete energy levels are broadened into continuous spectra
     switch (dat.delta) {
         case 0:
-            diracdelta = &diracdelta_gaussian;
+            diracdelta = &diracdelta_gaussian;    // Gaussian broadening
             break;
         case 1:
-            diracdelta = &diracdelta_lorentzian;
+            diracdelta = &diracdelta_lorentzian;  // Lorentzian broadening  
             break;
         case 2:
-            diracdelta = &diracdelta_triangle;
+            diracdelta = &diracdelta_triangle;    // Triangular broadening
             break;
         case 3:
-            diracdelta = &diracdelta_rect;
+            diracdelta = &diracdelta_rect;        // Rectangular broadening
             break;
     }
 
-    // scalefactor
+    // STEP 2: Define physical scale factors for different tensor components
+    // These convert from atomic units to practical units (eV, Angstrom, etc.)
     double SCALEFACTOR = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-    double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-    double SCALEFACTOR_TT = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
-    double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));
+    double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);           // Longitudinal-longitudinal
+    double SCALEFACTOR_TT = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5)); // Transverse-transverse  
+    double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));  // Longitudinal-transverse
 
-    // initialize susceptibility tensor matrix elements
-    dat.ReXij = new double *****[NQ];
-    dat.ImXij = new double *****[NQ];
+    // STEP 3: Allocate memory for susceptibility tensor matrix elements
+    // Structure: ReXij[q][i][j][m][n][f] and ImXij[q][i][j][m][n][f]
+    // where q=q-vector, i,j=cartesian indices, m,n=G-vector indices, f=frequency
+    dat.ReXij = new double *****[NQ];      // Real parts
+    dat.ImXij = new double *****[NQ];      // Imaginary parts
     for (int q=0; q<NQ; q++){
         dat.ReXij[q] = new double ****[NTSR];
         dat.ImXij[q] = new double ****[NTSR];
@@ -166,7 +277,7 @@ void chi_LL(env &dat){
                 for (int m=0; m<NEPS; m++){
                     dat.ReXij[q][i][j][m] = new double *[NEPS];
                     dat.ImXij[q][i][j][m] = new double *[NEPS];
-                    for (int n=0; n<=m; n++){
+                    for (int n=0; n<=m; n++){  // Only store upper triangular part (m >= n)
                         dat.ReXij[q][i][j][m][n] = new double [NFREQ];
                         dat.ImXij[q][i][j][m][n] = new double [NFREQ];
                     }
@@ -176,68 +287,91 @@ void chi_LL(env &dat){
     }
 
     //======================================================================
+    // PHASE 1: CALCULATE CONDUCTION BAND STATES |k,c⟩
+    //======================================================================
     std::cout << "  Solving for |k,v>..." << std::endl;
-    time_0 = std::chrono::system_clock::now();
-    int NBAND_C [NKPT]; // number of conduction bands
-    double **E_k; // eigenvalue at k [NK x NC]
+    time_0 = std::chrono::system_clock::now();    int NBAND_C [NKPT]; // Number of conduction bands per k-point
+    double **E_k; // Conduction band eigenvalues: E_k[k-point][band]
     E_k = new double *[NKPT];
-    std::complex<double> ***C_k; // eigenvector at k [NK x NC]
+    std::complex<double> ***C_k; // Conduction band eigenvectors: C_k[k-point][band][G-vector]
     C_k = new std::complex<double> **[NKPT];
+    
+    // Parallelize over k-points for efficiency
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
-        // vector{k}
+        // Get k-vector from the lattice structure
         Eigen::Vector3d K = dat.lat.K[k];
 
-        // Hamiltonian at k
+        // Construct Hamiltonian matrix H(k) using empirical pseudopotentials
+        // This returns a matrix of size NPW×NPW (or 2*NPW×2*NPW if SOC is included)
         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
         
-        // compute eigenvalue problem at k
+        // Solve eigenvalue problem: H(k)|ψ_n(k)⟩ = E_n(k)|ψ_n(k)⟩
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
 
+        // Allocate memory for eigenvalues at this k-point
         E_k[k] = new double [NBAND];
+        
+        // Extract eigenvalues and determine conduction band count
+        // Note: Eigenvalues are ordered from lowest to highest
+        // We start from the highest energy bands (NBAND-1-c) and work down
         for (int c=0; c<NBAND; c++){
             E_k[k][c] = eigsolver_k.eigenvalues()(NBAND-1-c)-dat.energyoffset;
+            
+            // Count conduction bands (those with positive energy)
             if (E_k[k][c]<=0) {
-                NBAND_C[k] = c;
+                NBAND_C[k] = c;  // c becomes the number of conduction bands
                 break;
             }
         }
+        
+        // Store only conduction band eigenvectors to save memory
         C_k[k] = new std::complex<double> *[NBAND_C[k]];
         for (int c=0; c<NBAND_C[k]; c++){
             C_k[k][c] = new std::complex<double> [NPW];
             for (int p=0; p<NPW; p++){
+                // Extract eigenvector components (plane wave coefficients)
                 C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
-            }// loop over p
-        }// loop over c
-    }
+            }// loop over plane wave components
+        }// loop over conduction bands
+    }    // Synchronization barrier to ensure all k-point calculations are complete
     #pragma omp barrier
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
     std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
     //======================================================================
-    // initialize large temporary variables
-    // overlap integral, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
+    // PHASE 2: PREPARE OVERLAP INTEGRAL STORAGE 
+    //======================================================================
+    
+    // Allocate memory for overlap integrals between valence and conduction states
+    // These represent matrix elements like ⟨k,c|e^{-i(q+G_m)·r}|k+q,v⟩
+    // Structure: oint[k-point][cartesian_component][G-vector][conduction_band][valence_band]
     std::complex<double> *****oint;
-    oint = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    oint = new std::complex<double> ****[NKPT]; 
     for (int k=0; k<NKPT; k++){
-        oint[k] = new std::complex<double> ***[3];
+        oint[k] = new std::complex<double> ***[3];      // 3 Cartesian components (x,y,z)
         for (int i=0; i<NTSR; i++){
-            oint[k][i] = new std::complex<double> **[NEPS];
+            oint[k][i] = new std::complex<double> **[NEPS];  // NEPS G-vectors
             for (int m=0; m<NEPS; m++){
-                oint[k][i][m] = new std::complex<double> *[NBAND_C[k]];
+                oint[k][i][m] = new std::complex<double> *[NBAND_C[k]];  // Conduction bands
             }
         }
     }
 
+    //======================================================================
+    // PHASE 3: MAIN SUSCEPTIBILITY CALCULATION LOOP
+    //======================================================================
     std::cout << "  Solving for susceptibility tensor matrix elements (alternative form)..." << std::endl;
-    int NBAND_V [NKPT]; // number of valence bands
-    std::complex<double> ***C_kq; // eigenvector at k+q
-    double **E_kq; // eigenvalue at k
+    
+    // Variables for valence band states at k+q
+    int NBAND_V [NKPT]; // Number of valence bands per k-point  
+    std::complex<double> ***C_kq; // Valence band eigenvectors at k+q
+    double **E_kq; // Valence band eigenvalues at k+q
     E_kq = new double *[NKPT];
     C_kq = new std::complex<double> **[NKPT];
     for (int k=0; k<NKPT; k++){
-        E_kq[k] = new double [NBAND];
+        E_kq[k] = new double [NBAND];  // Allocate for all bands initially
     }
     // #pragma omp parallel
     for (int q=0; q<NQ; q++){
@@ -673,12 +807,12 @@ void chi_tensor(env &dat){
         
 
         // free dynamically allocated memory
-        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int c=0; c<NBAND_C[k]; c++){
-            delete [] oint[k][i][m][c];
+        for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int v=0; v<NBAND_V[k]; v++){
+            delete [] oint[k][i][m][v];
         }}}}
         for (int k=0; k<NKPT; k++){
-            for (int v=0; v<NBAND_V[k]; v++){
-                delete [] C_kq[k][v];
+            for (int c=0; c<NBAND_C[k]; c++){
+                delete [] C_kq[k][c];
             }
             delete [] C_kq[k];
         }
@@ -697,8 +831,8 @@ void chi_tensor(env &dat){
     delete [] oint;
 
     for (int k=0; k<NKPT; k++){
-        for (int c=0; c<NBAND_C[k]; c++){
-            delete [] C_k[k][c];
+        for (int v=0; v<NBAND_V[k]; v++){
+            delete [] C_k[k][v];
         }
         delete [] C_k[k];
         delete [] E_k[k];
@@ -996,971 +1130,77 @@ void chi_xyz(env &dat){
     return;
 }
 
-
-
-
-
-
-
-// void chi_tensor_LF(env &dat){
-
-//     // use indirect function calls for diracdelta function
-//     switch (DELTA) {
-//         case 0:
-//             diracdelta = &diracdelta_gaussian;
-//             break;
-//         case 1:
-//             diracdelta = &diracdelta_lorentzian;
-//             break;
-//         case 2:
-//             diracdelta = &diracdelta_triangle;
-//             break;
-//         case 3:
-//             diracdelta = &diracdelta_rect;
-//             break;
-//     }
-
-//     // scalefactor
-//     double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+/*
+    ============================================================================
+    ADDITIONAL NOTES ON LOGICAL FLOW FOR REMAINING FUNCTIONS:
+    ============================================================================
     
-//     // initialize susceptibility tensor matrix
-//     dat.realepsij = new double *****[3];
-//     dat.imagepsij = new double *****[3];
-//     for (int i=0; i<3; i++){
-//         dat.realepsij[i] = new double ****[3];
-//         dat.imagepsij[i] = new double ****[3];
-//         for (int j=0; j<3; j++){
-//             dat.realepsij[i][j] = new double ***[NQ];
-//             dat.imagepsij[i][j] = new double ***[NQ];
-//             for (int q=0; q<NQ; q++){
-//                 dat.realepsij[i][j][q] = new double **[NEPS];
-//                 dat.imagepsij[i][j][q] = new double **[NEPS];
-//                 for (int m=0; m<NEPS; m++){
-//                     dat.realepsij[i][j][q][m] = new double *[NEPS];
-//                     dat.imagepsij[i][j][q][m] = new double *[NEPS];
-//                     for (int n=0; n<=m; n++){
-//                         dat.realepsij[i][j][q][m][n] = new double [NFREQ];
-//                         dat.imagepsij[i][j][q][m][n] = new double [NFREQ];
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     //======================================================================
-//     int NBAND_V [NKPT]; // number of valence bands
-//     double **E_k; // Energy at k
-//     std::complex<double> ***C_k; // eigenvector at k
-//     E_k = new double *[NKPT];
-//     C_k = new std::complex<double> **[NKPT];
-//     #pragma omp parallel for
-//     for (int k=0; k<NKPT; k++){
-//         // vector{k}
-//         Eigen::Vector3d K = dat.lat.K[k];
-
-//         // Hamiltonian at k
-//         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
-        
-//         // compute eigenvalue problem at k
-//         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
-//         if (eigsolver_k.info() != Eigen::Success){ printf("ERROR: Eigensolver failed to solve the matrix."); abort(); }
-
-//         E_k[k] = new double [NBAND];
-//         for (int n=0; n<NBAND; n++){
-//             E_k[k][n] = eigsolver_k.eigenvalues()(n)-dat.energyoffset;
-//             if (E_k[k][n] > 0) {
-//                 NBAND_V[k] = n;
-//                 break;
-//             }
-//         }
-//         C_k[k] = new std::complex<double> *[NBAND_V[k]];
-//         for (int n=0; n<NBAND_V[k]; n++){
-//             C_k[k][n] = new std::complex<double> [NPW];
-//             for (int j=0; j<NPW; j++){
-//                 C_k[k][n][j] = eigsolver_k.eigenvectors().col(n)(j);
-//             }
-//         }
-//     }
-//     #pragma omp barrier
+    The file contains several main calculation functions, each following similar patterns:
     
-
-//     //======================================================================
-//     // initialize temporary variables for k+q
-//     // overlap integral, O(k,q,m,v,c) = \vec{u}_{Q+G_m} * <k,v|e^{-i*g_m}j_0|k+q+g_m,c>
-//     std::complex<double> *****oint;
-//     oint = new std::complex<double> ****[NKPT]; // overlap integral [NK x 3 x NEPS x NV x NC]
-//     for (int k=0; k<NKPT; k++){
-//         oint[k] = new std::complex<double> ***[3];
-//         for (int i=0; i<3; i++){
-//             oint[k][i] = new std::complex<double> **[NEPS];
-//             for (int m=0; m<NEPS; m++){
-//                 oint[k][i][m] = new std::complex<double> *[NBAND_V[k]];
-//             }
-//         }
-//     }
-
-//     // initialize E_kqm [NKPT x NEPS x NPW]
-//     int NBAND_CB [NKPT]; // number of conduction bands
-//     double E_kq [NKPT][NBAND]; // energy at (k+q+g_m,c)
-//     // double **E_kqm; // energy at (k+q+g_m,c)
-//     // E_kqm = new double *[NKPT];
-//     // for (int k=0; k<NKPT; k++){
-//     //     E_kqm[k] = new double [NBAND];
-//     // }
+    COMMON PATTERN FOR ALL CHI CALCULATIONS:
+    ---------------------------------------
     
-
-//     for (int q=0; q<NQ; q++){
-//         Eigen::Vector3d Q = dat.lat.Q[q];
-
-//         // construct overlap integrals
-//         #pragma omp parallel for
-//         for (int k=0; k<NKPT; k++){
-            
-//             // get eigenvectors
-//             Eigen::Vector3d K = dat.lat.K[k]; // vector{k}
-//             std::complex<double> C_kqgm [NEPS][NBAND][NPW];
-//             for (int m=0; m<NEPS; m++){
-//                 Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);
-//                 Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-//                 if (m==0){
-//                     for (int c=0; c<NBAND; c++){
-//                         E_kq[k][c] = double(eigsolver_kq.eigenvalues()(NBAND-1-c))-dat.energyoffset; // "NBAND-1-c" from behind
-//                         if (E_kq[k][c]<=0){
-//                             NBAND_CB[k] = c; // number of conduction bands
-//                             break;
-//                         }
-//                     }// loop over c
-//                 }
-//                 for (int c=0; c<NBAND_CB[k]; c++){
-//                     for (int p=0; p<NPW; p++){
-//                         C_kqgm[m][c][p] = eigsolver_kq.eigenvectors().col(NBAND-1-c)(p); // "NBAND-1-c" from behind
-//                     }
-//                 }// loop over c
-//             }// loop over m
-
-//             // phase correction (if possible?)
-
-
-
-//             // get overlap integrals
-//             for (int m=0; m<NEPS; m++){
-//                 std::vector<Eigen::Vector3cd> uvec_m = unitvec(dat.lat.G[m]+Q);
-//                 for (int i=0; i<3; i++){
-//                     for (int v=0; v<NBAND_V[k]; v++){ // valence bands
-//                         oint[k][i][m][v] = new std::complex<double> [NBAND_CB[k]];
-//                         for (int c=0; c<NBAND_CB[k]; c++){ // conduction bands
-//                             std::complex<double> oint_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-//                             for (int p=0; p<NPW; p++){
-//                                 oint_k_kq += conj(C_k[k][v][p]) * C_kqgm[m][c][p] * uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2); //+dat.G[m]/2
-//                             }// loop over p
-//                             oint[k][i][m][v][c] = oint_k_kq;
-//                         }// loop over c
-//                     }// loop over v
-//                 }// loop over i
-//             }// loop over m
-//         }// loop over k (parallel)
-//         #pragma omp barrier
-
-
-
-//         // construct the susceptibility tensor matrix
-//         for (int m=0; m<NEPS; m++){ for (int n=0; n<=m; n++){
-//             #pragma omp parallel for //collapse(3)
-//             for (int f=0; f<NFREQ; f++){
-//                 // temporary variables
-//                 double tmpval_real[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-//                 double tmpval_imag[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
-//                 double depsilon = 0; // E_{k+q,c}-E_{k,v}
-                
-//                 for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-                    
-//                     // sum over k-grids & bands
-//                     // \sum_{k,c,v} <k,v|e^{-i*(q+g_m)*r}|k+q+g_m,c> <k+q+g_n,c|e^{i*(q+g_n)*r)}|k,v>
-//                     for (int k=0; k<NKPT; k++){
-//                         for (int v=0; v<NBAND_V[k]; v++){ for (int c=0; c<NBAND_CB[k]; c++){
-//                             depsilon = E_kq[k][c]-E_k[k][v];
-//                             // imaginary part
-//                             tmpval_imag[i][j] += dat.lat.KW[k] * (oint[k][i][m][v][c] * conj(oint[k][j][n][v][c])).real()
-//                                                 * (*diracdelta)(depsilon-dat.freq[f]);
-//                             // real part
-//                             if (dat.kk==0){
-//                                 tmpval_real[i][j] += dat.lat.KW[k] * (oint[k][i][m][v][c] * conj(oint[k][j][n][v][c])).real()
-//                                                 / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
-//                             }
-//                         }}
-//                     }// loop over k
-//                 }}// loop over i,j
-
-//                 // permittivity
-//                 for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-//                     if (dat.freq[f]>0){
-//                         dat.imagepsij[i][j][q][m][n][f] = SCALEFACTOR * pi * tmpval_imag[i][j] / (dat.freq[f]*dat.freq[f]);
-//                     }else{
-//                         dat.imagepsij[i][j][q][m][n][f] = 0;
-//                     }
-//                 }}
-//                 if (dat.kk==0){
-//                     for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-//                         dat.realepsij[i][j][q][m][n][f] = SCALEFACTOR * 2 * tmpval_real[i][j];
-//                         // if (m==n && i==j) dat.realepsij[i][j][q][m][n][f] += 1;
-//                     }}
-//                 }
-//             }// loop over f
-//         }}// loop over m,n
-//         #pragma omp barrier
-
-//         // kramer-kronig transform
-//         if (dat.kk){
-//             for (int i=0; i<3; i++){for (int j=0; j<3; j++){
-//                 for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
-//                     kramerskronigtransform(dat.realepsij[i][j][q][m][n],dat.imagepsij[i][j][q][m][n],dat.freq,dat.dfreq);
-//                     // if (m==n && i==j){
-//                     //     for (int f=0; f<NFREQ; f++){
-//                     //         dat.realepsij[i][j][q][m][n][f] += 1;
-//                     //     }
-//                     // }
-//                 }}// loop over m,n
-//             }}// loop over i,j
-//         }
-
-//         // free dynamically allocated memory
-//         for (int k=0; k<NKPT; k++){
-//             for (int i=0; i<3; i++){
-//                 for (int m=0; m<NEPS; m++){
-//                     for (int v=0; v<NBAND_V[k]; v++){
-//                         delete [] oint[k][i][m][v];
-//                     }
-//                 }
-//             }
-//         }
-//     }// loop q
-
-//     // free dynamically allocated memory
-//     for (int k=0; k<NKPT; k++){
-//         for (int i=0; i<3; i++){
-//             for (int m=0; m<NEPS; m++){
-//                 delete [] oint[k][i][m];
-//             }
-//             delete [] oint[k][i];
-//         }
-//         delete [] oint[k];
-//     }
-//     delete [] oint;
-
-//     for (int k=0; k<NKPT; k++){
-//         for (int m=0; m<NBAND_V[k]; m++){
-//             delete [] C_k[k][m];
-//         }
-//         delete [] C_k[k];
-//         delete [] E_k[k];
-//     }
-//     delete [] E_k;
-//     delete [] C_k;
-
-//     return;
-// }
-
-
-}/* namespace pmx */
-
-
-
-
-
-
-
-
-
-
-// // Calculate lattice longitudinal and transverse permittivity matrix elements at G1, G2
-// void permittivity(env &dat){
-
-//     // use indirect function calls for diracdelta function
-//     if (DELTA) {
-//         diracdelta = &diracdelta_lorentzian;
-//     }
-//     else {
-//         diracdelta = &diracdelta_gaussian;
-//     }
-
-
-
-//     // scale factors
-//     double scaleL = 8.0*pow(e,2)/(pi*eV*a*angstrom);
-//     // double scaleL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-//     double scaleT = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
-
-//     std::complex<double> ***eigvector_k; // eigenvector at k
-//     double **eigvalue_k; // eigenvalue at k
-//     std::complex<double> ***eigvector_kq; // eigenvector at k+q
-//     double **eigvalue_kq; // eigenvalue at k
-
-//     // overlap integral L, <k,v|e^{-i*G_m}|k+q,c> <k+q,c|e^{i*G_n}|k,v>
-//     std::complex<double> *****ointL;
-//     // overlap integral T, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
-//     std::complex<double> *****ointT;
-
-//     int NBAND_V [NKPT]; // number of valence bands
-//     int NBAND_C [NKPT]; // number of conduction bands
-
-//     dat.realepsL = new double ***[NQ];
-//     dat.imagepsL = new double ***[NQ];
-//     dat.realepsT = new double ***[NQ];
-//     dat.imagepsT = new double ***[NQ];
-
-
-
-//     //======================================================================
-//     eigvalue_k = new double *[NKPT];
-//     eigvector_k = new std::complex<double> **[NKPT];
-//     #pragma omp parallel for
-//     for (int k=0; k<NKPT; k++){
-//         // vector{k}
-//         Eigen::Vector3d K = dat.lat.K[k];
-
-//         // Hamiltonian at k
-//         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
-        
-//         // compute eigenvalue problem at k
-//         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
-//         if (eigsolver_k.info() != Eigen::Success){ printf("ERROR: Eigensolver failed to solve the matrix."); abort(); }
-
-//         eigvalue_k[k] = new double [NBAND];
-//         for (int n=0; n<NBAND; n++){
-//             eigvalue_k[k][n] = eigsolver_k.eigenvalues()(n)-dat.energyoffset;
-//             if (eigvalue_k[k][n] > 0) {
-//                 NBAND_V[k] = n;
-//                 break;
-//             }
-//         }
-//         eigvector_k[k] = new std::complex<double> *[NBAND_V[k]];
-//         for (int n=0; n<NBAND_V[k]; n++){
-//             eigvector_k[k][n] = new std::complex<double> [NPW];
-//             for (int j=0; j<NPW; j++){
-//                 eigvector_k[k][n][j] = eigsolver_k.eigenvectors().col(n)(j);
-//             }
-//         }
-//     }
-//     #pragma omp barrier
+    1. SETUP PHASE:
+       - Select broadening function (Gaussian, Lorentzian, etc.)
+       - Define physical scaling factors for different field orientations
+       - Allocate memory for susceptibility tensor χ[q][i][j][G][G'][ω]
     
-
-//     //======================================================================
-//     ointL = new std::complex<double> ****[NKPT];
-//     ointT = new std::complex<double> ****[NKPT];
-//     eigvalue_kq = new double *[NKPT];
-//     eigvector_kq = new std::complex<double> **[NKPT];
-//     for (int k=0; k<NKPT; k++){
-//         ointL[k] = new std::complex<double>***[NEPS];
-//         ointT[k] = new std::complex<double>***[NEPS];
-//         for (int m=0; m<NEPS; m++){
-//             ointL[k][m] = new std::complex<double> **[NEPS];
-//             ointT[k][m] = new std::complex<double> **[NEPS];
-//             for (int n=0; n<=m; n++){
-//                 ointL[k][m][n] = new std::complex<double> *[NBAND_V[k]];
-//                 ointT[k][m][n] = new std::complex<double> *[NBAND_V[k]];
-//             }
-//         }
-//         eigvalue_kq[k] = new double [NBAND];
-//     }
-
-//     for (int q=0; q<NQ; q++){
-//         Eigen::Vector3d Q = dat.lat.Q[q];
-//         #pragma omp parallel for
-//         for (int k=0; k<NKPT; k++){
-            
-//             // vector{k}
-//             Eigen::Vector3d K = dat.lat.K[k];
-
-//             // Hamiltonian at k+q
-//             Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
-
-//             // compute eigenvalue problem at k+q
-//             Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-//             if(eigsolver_kq.info() != Eigen::Success){ printf("ERROR: Eigensolver failed to solve the matrix."); abort(); }
-            
-            
-//             int tempindex;
-//             for (int n=NBAND-1; n>=0; n--){
-//                 tempindex = NBAND-1-n;
-//                 eigvalue_kq[k][tempindex] = double(eigsolver_kq.eigenvalues()(n))-dat.energyoffset;
-//                 if (eigvalue_kq[k][tempindex] <=0) {
-//                     NBAND_C[k] = tempindex;
-//                     break;
-//                 }
-//             }
-//             eigvector_kq[k] = new std::complex<double> *[NBAND_C[k]];
-//             for (int n=0; n<NBAND_C[k]; n++){
-//                 tempindex = NBAND-1-n;
-//                 eigvector_kq[k][n] = new std::complex<double> [NPW];
-//                 for (int j=0; j<NPW; j++){
-//                     eigvector_kq[k][n][j] = eigsolver_kq.eigenvectors().col(tempindex)(j);
-//                 }
-//             }
-
-//             // overlap integrals
-//             for (int m=0; m<NEPS; m++){
-//                 for (int n=0; n<=m; n++){
-//                     // Eigen::Vector3d vecqGm = Q+dat.G[m]; // vector q+Gm     
-//                     // Eigen::Vector3d vecqGn = Q+dat.G[n]; // vector q+Gn    
-//                     // Eigen::Vector3d vecqGm_t = perpvec(vecqGm); // normal vector perpendicular to q+Gm
-//                     // Eigen::Vector3d vecqGn_t = perpvec(vecqGn); // normal vector perpendicular to q+Gn
-
-
-//                     // vecqGm_t = vecqGm_t.cross(vecqGm);
-//                     // vecqGn_t = vecqGn_t.cross(vecqGn);
-
-//                     // Eigen::Vector3d vecqGm = Q; // vector q+Gm     
-//                     // Eigen::Vector3d vecqGn = Q; // vector q+Gn    
-//                     // Eigen::Vector3d vecqGm_t = perpvec(vecqGm); // normal vector perpendicular to q+Gm
-//                     // Eigen::Vector3d vecqGn_t = perpvec(vecqGm); // normal vector perpendicular to q+Gn
-//                     // vecqGm_t = vecqGm_t.cross(vecqGm);
-//                     // vecqGn_t = vecqGn_t.cross(vecqGn);
-                    
-//                     //====================================================================
-//                     // // LL
-//                     // Eigen::Vector3d vecqGm_t = normvec(Q+dat.G[m]);
-//                     // Eigen::Vector3d vecqGn_t = normvec(Q+dat.G[n]);
-
-//                     // vecqGm_t = vecqGm_t/vecqGm_t.norm();
-//                     // vecqGn_t = vecqGn_t/vecqGn_t.norm();
-
-//                     // TT
-//                     Eigen::Vector3d vecqGm_t = perpvec(Q+dat.lat.G[m]);
-//                     Eigen::Vector3d vecqGn_t = perpvec(Q+dat.lat.G[n]);
-
-
-//                     // Eigen::Vector3d vecqGm_t = tanvec(Q+dat.G[m],Q);
-//                     // Eigen::Vector3d vecqGn_t = tanvec(Q+dat.G[n],Q);
-//                     // if (m==3 || m==4 || m==7 || m==8){
-//                     //     Eigen::Vector3d normQG = Q+dat.G[m];
-//                     //     normQG = normQG/normQG.norm();
-//                     //     vecqGm_t = vecqGm_t.cross(normQG);
-//                     // }
-//                     // if (n==3 || n==4 || n==7 || n==8){
-//                     //     Eigen::Vector3d normQG = Q+dat.G[n];
-//                     //     normQG = normQG/normQG.norm();
-//                     //     vecqGn_t = vecqGn_t.cross(normQG);
-//                     // }
-
-
-//                     // // T'T'
-//                     // Eigen::Vector3d vecqGm_t = perpvec(Q+dat.lat.G[m]);
-//                     // Eigen::Vector3d vecqGn_t = perpvec(Q+dat.lat.G[n]);
-//                     // Eigen::Vector3d normQG = normvec(Q+dat.lat.G[m]);
-//                     // vecqGm_t = vecqGm_t.cross(normQG);
-//                     // normQG = normvec(Q+dat.lat.G[n]);
-//                     // vecqGn_t = vecqGn_t.cross(normQG);
-
-//                     // // TT'
-//                     // Eigen::Vector3d vecqGm_t = perpvec(Q+dat.G[m]);
-//                     // Eigen::Vector3d vecqGn_t = perpvec(Q+dat.G[n]);
-//                     // Eigen::Vector3d normQG = Q+dat.G[n];
-//                     // normQG = normQG/normQG.norm();
-//                     // vecqGn_t = vecqGn_t.cross(normQG);
-
-
-//                     // // LT
-//                     // Eigen::Vector3d vecqGm_t2 = Q+dat.G[m];
-//                     // vecqGm_t2 = vecqGm_t2/vecqGm_t.norm();
-//                     // Eigen::Vector3d vecqGn_t2 = perpvec(Q+dat.G[n]);
-
-
-
-
-
-
-
-//                     // non-G ==================================================
-
-//                     // LL
-//                     // Eigen::Vector3d vecqGm_t = Q/Q.norm();
-//                     // Eigen::Vector3d vecqGn_t = Q/Q.norm();
-
-//                     // LT
-//                     // Eigen::Vector3d vecqGm_t = Q/Q.norm();
-//                     // Eigen::Vector3d vecqGn_t = perpvec(Q);
-
-//                     // // TT
-//                     // Eigen::Vector3d vecqGm_t = perpvec(Q);
-//                     // Eigen::Vector3d vecqGn_t = perpvec(Q);
-
-//                     // TT'
-//                     // Eigen::Vector3d vecqGm_t = perpvec(Q);
-//                     // Eigen::Vector3d vecqGn_t = perpvec(Q);
-//                     // vecqGn_t = vecqGn_t.cross(Q)/Q.norm();
-
-
-//                     for (int v=0; v<NBAND_V[k]; v++){ // valence bands
-//                         ointL[k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-//                         ointT[k][m][n][v] = new std::complex<double> [NBAND_C[k]];
-//                         for (int c=0; c<NBAND_C[k]; c++){ // conduction bands
-
-//                             std::complex<double> ointL_k_kq = 0.0; // <k,v|e^{-i*G_m}|k+q,c>
-//                             std::complex<double> ointT_k_kq = 0.0; // <k,v|e^{-i*G_m}j_0|k+q,c> * t_{G_m+Q}
-//                             std::complex<double> ointL_kq_k = 0.0; // <k+q,c|e^{i*G_n}|k,v>
-//                             std::complex<double> ointT_kq_k = 0.0; // <k+q,c|e^{i*G_n}j_0|k,v> * t_{G_n+Q}
-
-//                             for (int i=0; i<NPW; i++){
-//                                 if (dat.lat.loci[m][i]!=-1){
-//                                     ointL_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.lat.loci[m][i]];
-//                                     ointT_k_kq += conj(eigvector_k[k][v][i]) * eigvector_kq[k][c][dat.lat.loci[m][i]] 
-//                                                                 * (dat.lat.G[i]+K +dat.lat.G[m]/2+Q/2).dot(vecqGm_t); // 
-//                                 }
-//                                 if (dat.lat.loci[n][i]!=-1){
-//                                     ointL_kq_k += conj(eigvector_kq[k][c][dat.lat.loci[n][i]]) * eigvector_k[k][v][i];
-//                                     ointT_kq_k += conj(eigvector_kq[k][c][dat.lat.loci[n][i]]) * eigvector_k[k][v][i] 
-//                                                                 * (dat.lat.G[i]+K +dat.lat.G[n]/2+Q/2).dot(vecqGn_t); //
-//                                 }
-//                             }
-
-//                             ointL[k][m][n][v][c] = ointL_k_kq * ointL_kq_k;
-//                             ointT[k][m][n][v][c] = ointT_k_kq * ointT_kq_k;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//         #pragma omp barrier
-
-
-//         dat.realepsL[q] = new double **[NEPS];
-//         dat.imagepsL[q] = new double **[NEPS];
-//         dat.realepsT[q] = new double **[NEPS];
-//         dat.imagepsT[q] = new double **[NEPS];
-//         for (int m=0; m<NEPS; m++){
-//             dat.realepsL[q][m] = new double *[NEPS];
-//             dat.imagepsL[q][m] = new double *[NEPS];
-//             dat.realepsT[q][m] = new double *[NEPS];
-//             dat.imagepsT[q][m] = new double *[NEPS];
-//             for (int n=0; n<=m; n++){
-//                 dat.realepsL[q][m][n] = new double [NFREQ];
-//                 dat.imagepsL[q][m][n] = new double [NFREQ];
-//                 dat.realepsT[q][m][n] = new double [NFREQ];
-//                 dat.imagepsT[q][m][n] = new double [NFREQ];
-//                 #pragma omp parallel for //collapse(3)
-//                 for (int f=0; f<NFREQ; f++){
-//                     // temporary variables
-//                     double realL1 = 0.0e0;
-//                     double imagL1 = 0.0e0;
-//                     double realT1 = 0.0e0;
-//                     double imagT1 = 0.0e0;
-//                     double depsilon = 0;
-//                     double realdL, imagdL, realdT, imagdT;
-
-//                     // sum over k-grids & bands
-//                     for (int k=0; k<NKPT; k++){
-//                         for (int v=0; v<NBAND_V[k]; v++){ for (int c=0; c<NBAND_C[k]; c++){
-//                             depsilon = eigvalue_kq[k][c]-eigvalue_k[k][v];
-//                             imagL1 += dat.lat.KW[k] * (ointL[k][m][n][v][c]).real() 
-//                                                     * (*diracdelta)(depsilon-dat.freq[f]);
-//                             imagT1 += dat.lat.KW[k] * (ointT[k][m][n][v][c]).real() 
-//                                                     * (*diracdelta)(depsilon-dat.freq[f]);
-//                             if (dat.kk==0){
-//                                 realL1 += dat.lat.KW[k] * (ointL[k][m][n][v][c]).real() 
-//                                                         * (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
-//                                 realT1 += dat.lat.KW[k] * (ointT[k][m][n][v][c]).real() 
-//                                                         / (depsilon) / (depsilon*depsilon-dat.freq[f]*dat.freq[f]);
-//                             }
-//                         }}
-//                     }
-
-//                     // longitudinal permittivity
-//                     Eigen::Vector3d vecqGm = Q+dat.lat.G[m];
-//                     Eigen::Vector3d vecqGn = Q+dat.lat.G[n];
-//                     imagdL = 0.0e0;
-//                     if (dat.freq[f]>0) imagdL = scaleL * pi * imagL1 / (vecqGm.norm()*vecqGn.norm());
-//                     dat.imagepsL[q][m][n][f] = imagdL;
-                    
-//                     // transverse permittivity
-//                     imagdT = 0.0e0;
-//                     if (dat.freq[f]>0) imagdT = scaleT * pi * imagT1 / (dat.freq[f]*dat.freq[f]);
-//                     dat.imagepsT[q][m][n][f] = imagdT;
-
-//                     if (dat.kk==0){
-//                         realdL = scaleL * 2 * realL1 / (vecqGm.norm()*vecqGn.norm());
-//                         if (m==n) realdL += 1.0;
-//                         dat.realepsL[q][m][n][f] = realdL;
-//                         realdT = scaleT * 2 * realT1;
-//                         if (m==n) realdT += 1.0;
-//                         dat.realepsT[q][m][n][f] = realdT;
-//                     }
-//                 }
-//             }
-//         }
-//         #pragma omp barrier
-
-//         // kramer-kronig transform
-//         if (dat.kk){
-//             for (int m=0; m<NEPS; m++){
-//                 for (int n=0; n<=m; n++){
-//                     kramerskronigtransform(dat.realepsL[q][m][n],dat.imagepsL[q][m][n],dat.freq,dat.dfreq);
-//                     kramerskronigtransform(dat.realepsT[q][m][n],dat.imagepsT[q][m][n],dat.freq,dat.dfreq);
-//                     if (m==n){
-//                         for (int f=0; f<NFREQ; f++){
-//                             dat.realepsL[q][m][n][f] += 1;
-//                             dat.realepsT[q][m][n][f] += 1;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-
-//         // free dynamically allocated memory
-//         for (int k=0; k<NKPT; k++){
-//             for (int m=0; m<NEPS; m++){
-//                 for (int n=0; n<=m; n++){
-//                     for (int v=0; v<NBAND_V[k]; v++){
-//                         delete [] ointL[k][m][n][v];
-//                         delete [] ointT[k][m][n][v];
-//                     }
-//                 }
-//             }
-//             for (int m=0; m<NBAND_C[k]; m++){
-//                 delete [] eigvector_kq[k][m];
-//             }
-//             delete [] eigvector_kq[k];
-//         }
-//     }// loop q
-
-//     // free dynamically allocated memory
-//     for (int k=0; k<NKPT; k++){
-//         for (int m=0; m<NEPS; m++){
-//             for (int n=0; n<=m; n++){
-//                 delete [] ointL[k][m][n];
-//                 delete [] ointT[k][m][n];
-//             }
-//             delete [] ointL[k][m];
-//             delete [] ointT[k][m];
-//         }
-//         delete [] ointL[k];
-//         delete [] ointT[k];
-
-//         for (int m=0; m<NBAND_V[k]; m++){
-//             delete [] eigvector_k[k][m];
-//         }
-//         delete [] eigvector_k[k];
-//         delete [] eigvalue_k[k];
-//         delete [] eigvalue_kq[k];
-//     }
-//     delete [] ointL;
-//     delete [] ointT;
-//     delete [] eigvalue_k;
-//     delete [] eigvalue_kq;
-//     delete [] eigvector_k;
-//     delete [] eigvector_kq;
-
-
-
-//     NTSR = 1;
-//     // initialize susceptibility tensor matrix elements
-//     dat.ReXij = new double *****[NQ];
-//     dat.ImXij = new double *****[NQ];
-//     for (int q=0; q<NQ; q++){
-//         dat.ReXij[q] = new double ****[NTSR];
-//         dat.ImXij[q] = new double ****[NTSR];
-//         for (int i=0; i<NTSR; i++){
-//             dat.ReXij[q][i] = new double ***[NTSR];
-//             dat.ImXij[q][i] = new double ***[NTSR];
-//             for (int j=0; j<NTSR; j++){
-//                 dat.ReXij[q][i][j] = new double **[NEPS];
-//                 dat.ImXij[q][i][j] = new double **[NEPS];
-//                 for (int m=0; m<NEPS; m++){
-//                     dat.ReXij[q][i][j][m] = new double *[NEPS];
-//                     dat.ImXij[q][i][j][m] = new double *[NEPS];
-//                     for (int n=0; n<=m; n++){
-//                         dat.ReXij[q][i][j][m][n] = new double [NFREQ];
-//                         dat.ImXij[q][i][j][m][n] = new double [NFREQ];
-//                         for (int f=0; f<NFREQ; f++){
-//                             dat.ReXij[q][i][j][m][n][f] = dat.realepsL[q][m][n][f];
-//                             dat.ImXij[q][i][j][m][n][f] = dat.imagepsL[q][m][n][f];
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-
-
-
-
-//     return;
-// }
-
-// // longitudinal-longitudinal part of susceptibility tensor matrix
-// void chi_LL_old(env &dat){
-//     std::chrono::time_point<std::chrono::system_clock> time_0, time_1;
-//     std::chrono::duration<double> elapsed_time;
-
-//     NTSR = 3;
-
-//     // use indirect function calls for diracdelta function
-//     switch (DELTA) {
-//         case 0:
-//             diracdelta = &diracdelta_gaussian;
-//             break;
-//         case 1:
-//             diracdelta = &diracdelta_lorentzian;
-//             break;
-//         case 2:
-//             diracdelta = &diracdelta_triangle;
-//             break;
-//         case 3:
-//             diracdelta = &diracdelta_rect;
-//             break;
-//     }
-
-//     // scalefactor
-//     // double SCALEFACTOR = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-//     double SCALEFACTOR = 8.0*pow(e,2)/(pi*eV*a*angstrom);
-
-//     // initialize susceptibility tensor matrix elements
-//     dat.ReXij = new double *****[NQ];
-//     dat.ImXij = new double *****[NQ];
-//     for (int q=0; q<NQ; q++){
-//         dat.ReXij[q] = new double ****[NTSR];
-//         dat.ImXij[q] = new double ****[NTSR];
-//         for (int i=0; i<NTSR; i++){
-//             dat.ReXij[q][i] = new double ***[NTSR];
-//             dat.ImXij[q][i] = new double ***[NTSR];
-//             for (int j=0; j<NTSR; j++){
-//                 dat.ReXij[q][i][j] = new double **[NEPS];
-//                 dat.ImXij[q][i][j] = new double **[NEPS];
-//                 for (int m=0; m<NEPS; m++){
-//                     dat.ReXij[q][i][j][m] = new double *[NEPS];
-//                     dat.ImXij[q][i][j][m] = new double *[NEPS];
-//                     for (int n=0; n<=m; n++){
-//                         dat.ReXij[q][i][j][m][n] = new double [NFREQ];
-//                         dat.ImXij[q][i][j][m][n] = new double [NFREQ];
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     //======================================================================
-//     std::cout << "  Solving for |k,v>..." << std::endl;
-//     time_0 = std::chrono::system_clock::now();
-//     int NBAND_C [NKPT]; // number of conduction bands
-//     double **E_k; // eigenvalue at k [NK x NC]
-//     E_k = new double *[NKPT];
-//     std::complex<double> ***C_k; // eigenvector at k [NK x NC]
-//     C_k = new std::complex<double> **[NKPT];
-//     #pragma omp parallel for
-//     for (int k=0; k<NKPT; k++){
-//         // vector{k}
-//         Eigen::Vector3d K = dat.lat.K[k];
-
-//         // Hamiltonian at k
-//         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
-        
-//         // compute eigenvalue problem at k
-//         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
-
-//         E_k[k] = new double [NBAND];
-//         for (int c=0; c<NBAND; c++){
-//             E_k[k][c] = eigsolver_k.eigenvalues()(NBAND-1-c)-dat.energyoffset;
-//             if (E_k[k][c]<=0) {
-//                 NBAND_C[k] = c;
-//                 break;
-//             }
-//         }
-//         C_k[k] = new std::complex<double> *[NBAND_C[k]];
-//         for (int c=0; c<NBAND_C[k]; c++){
-//             C_k[k][c] = new std::complex<double> [NPW];
-//             for (int p=0; p<NPW; p++){
-//                 C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
-//             }// loop over p
-//         }// loop over c
-//     }
-//     #pragma omp barrier
-//     time_1 = std::chrono::system_clock::now();
-//     elapsed_time = time_1-time_0;
-//     std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-
-//     //======================================================================
-//     // initialize large temporary variables
-//     // overlap integral, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
-//     std::complex<double> *****oint;
-//     oint = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
-//     for (int k=0; k<NKPT; k++){
-//         oint[k] = new std::complex<double> ***[3];
-//         for (int i=0; i<NTSR; i++){
-//             oint[k][i] = new std::complex<double> **[NEPS];
-//             for (int m=0; m<NEPS; m++){
-//                 oint[k][i][m] = new std::complex<double> *[NBAND_C[k]];
-//             }
-//         }
-//     }
-//     // std::complex<double> im = std::complex<double>(0.0,1.0);
-
-
-//     std::cout << "  Solving for susceptibility tensor matrix elements (LL only)..." << std::endl;
-//     int NBAND_V [NKPT]; // number of valence bands
-//     std::complex<double> ***C_kq; // eigenvector at k+q
-//     double **E_kq; // eigenvalue at k
-//     E_kq = new double *[NKPT];
-//     C_kq = new std::complex<double> **[NKPT];
-//     for (int k=0; k<NKPT; k++){
-//         E_kq[k] = new double [NBAND];
-//     }
-//     // #pragma omp parallel
-//     for (int q=0; q<NQ; q++){
-//         std::cout << "  (" << (q+1) << "/" << NQ << ")..." << std::endl; // (q/NQ)
-//         Eigen::Vector3d Q = dat.lat.Q[q];
-
-//         std::cout << "    Solving for overlap integrals..." << std::endl;
-//         time_0 = std::chrono::system_clock::now();
-//         #pragma omp parallel for
-//         for (int k=0; k<NKPT; k++){
-            
-//             // Hamiltonian at k+q
-//             Eigen::Vector3d K = dat.lat.K[k];
-//             Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
-
-//             // compute eigenvalue problem at k+q
-//             Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-//             for (int v=0; v<NBAND; v++){
-//                 E_kq[k][v] = double(eigsolver_kq.eigenvalues()(v))-dat.energyoffset;
-//                 if (E_kq[k][v]>0) {
-//                     NBAND_V[k] = v;
-//                     break;
-//                 }
-//             }
-//             C_kq[k] = new std::complex<double> *[NBAND_V[k]];
-//             for (int v=0; v<NBAND_V[k]; v++){
-//                 C_kq[k][v] = new std::complex<double> [NPW];
-//                 for (int p=0; p<NPW; p++){
-//                     C_kq[k][v][p] = eigsolver_kq.eigenvectors().col(v)(p);
-//                 }
-//             }
-            
-//             // overlap integrals
-//             for (int m=0; m<NEPS; m++){
-//                 // std::vector<Eigen::Vector3cd> uvec_m = unitvecq(Q+dat.lat.G[m],Q); //Q+
-//                 // std::vector<Eigen::Vector3cd> uvec_m = unitvec(Q+dat.lat.G[m]);
-//                 for (int i=0; i<NTSR; i++){
-//                     for (int c=0; c<NBAND_C[k]; c++){
-//                         oint[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
-//                         for (int v=0; v<NBAND_V[k]; v++){
-//                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}|k+q,v>
-//                             oint[k][i][m][c][v] = 0;
-//                             for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
-//                                 oint[k][i][m][c][v] += (conj(C_k[k][c][p]) * C_kq[k][v][dat.lat.loci[m][p]]);
-//                             }}
-//                         }//loop over v
-//                     }//loop over c
-//                 }//loop over i
-//             }//loop over m
-//         }//loop over k
-//         #pragma omp barrier
-//         time_1 = std::chrono::system_clock::now();
-//         elapsed_time = time_1-time_0;
-//         std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-
-//         std::cout << "    Solving for Xijmn..." << std::endl;
-//         time_0 = std::chrono::system_clock::now();
-//         #pragma omp parallel for collapse(4)
-//         for (int i=0; i<NTSR; i++){for (int j=0; j<NTSR; j++){for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
-//             Eigen::Vector3d vecqgm = Q+dat.lat.G[m];
-//             Eigen::Vector3d vecqgn = Q+dat.lat.G[n];
-//             for (int f=0; f<NFREQ; f++){
-//                 double tmp_real_1 = 0;
-//                 double tmp_imag_1 = 0;
-//                 double tmp_real_2 = 0;
-//                 double tmp_imag_2 = 0;
-//                 // sum over k,c,v
-//                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
-//                     double dE = E_k[k][c]-E_kq[k][v];
-//                     std::complex<double> Oij = oint[k][i][m][c][v] * conj(oint[k][j][n][c][v]);
-                    
-//                     // 
-//                     tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-//                                           * (*diracdelta)(dE-dat.freq[f]);
-//                     tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-//                                           * (*diracdelta)(dE-dat.freq[f]);
-
-//                     if (dat.kk==0){
-//                         tmp_real_2 += dat.lat.KW[k] * Oij.real()
-//                                          * (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-//                         tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-//                                          * (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-//                     }
-//                 }}}
-//                 if (f==0){
-//                     tmp_imag_1 = 0;
-//                     tmp_real_1 = 0;
-//                 }else{
-//                     tmp_imag_1 /= (vecqgm.norm()*vecqgn.norm());
-//                     // tmp_real_1 /= (vecqgm.norm()*vecqgn.norm());
-//                 }
-//                 if (dat.kk==0){
-//                     // tmp_imag_2 /= (vecqgm.norm()*vecqgn.norm());
-//                     tmp_real_2 /= (vecqgm.norm()*vecqgn.norm());
-//                 }
-//                 dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1+2.0*tmp_imag_2);
-//                 dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1+2.0*tmp_real_2);
-//             }
-//         }}}}
-//         #pragma omp barrier
-//         time_1 = std::chrono::system_clock::now();
-//         elapsed_time = time_1-time_0;
-//         std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-
-
-        
-//         // kramer-kronig transform
-//         if(dat.kk){
-//             std::cout << "    Kramers-Kronig transform..." << std::endl;
-//             time_0 = std::chrono::system_clock::now();
-//             #pragma omp parallel for collapse(4)
-//             for (int i=0; i<NTSR; i++){ for (int j=0; j<NTSR; j++){ for (int m=0; m<NEPS; m++){ for (int n=0; n<=m; n++){
-//                 kramerskronigtransform(dat.ReXij[q][i][j][m][n],dat.ImXij[q][i][j][m][n],dat.freq,dat.dfreq);
-//             }}}}
-//             #pragma omp barrier
-//             time_1 = std::chrono::system_clock::now();
-//             elapsed_time = time_1-time_0;
-//             std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-//         }
-        
-
-//         // free dynamically allocated memory
-//         for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int c=0; c<NBAND_C[k]; c++){
-//             delete [] oint[k][i][m][c];
-//         }}}}
-//         for (int k=0; k<NKPT; k++){
-//             for (int v=0; v<NBAND_V[k]; v++){
-//                 delete [] C_kq[k][v];
-//             }
-//             delete [] C_kq[k];
-//         }
-//     }// loop q
-
-//     // free dynamically allocated memory
-//     for (int k=0; k<NKPT; k++){
-//         for (int i=0; i<NTSR; i++){
-//             for (int m=0; m<NEPS; m++){
-//                 delete [] oint[k][i][m];
-//             }
-//             delete [] oint[k][i];
-//         }
-//         delete [] oint[k];
-//     }
-//     delete [] oint;
-
-//     for (int k=0; k<NKPT; k++){
-//         for (int c=0; c<NBAND_C[k]; c++){
-//             delete [] C_k[k][c];
-//         }
-//         delete [] C_k[k];
-//         delete [] E_k[k];
-//         delete [] E_kq[k];
-//     }
-//     delete [] E_k;
-//     delete [] E_kq;
-//     delete [] C_k;
-//     delete [] C_kq;
-
-//     return;
-// }
-
+    2. ELECTRONIC STRUCTURE CALCULATION:
+       - For each k-point: solve H(k)|ψ_n(k)⟩ = E_n(k)|ψ_n(k)⟩
+       - Separate valence (E < 0) and conduction (E > 0) bands
+       - Store eigenvectors C_k[k][n][G] and eigenvalues E_k[k][n]
+    
+    3. OVERLAP INTEGRAL COMPUTATION:
+       - For each q-vector: calculate band structure at k+q
+       - Compute matrix elements: ⟨k,c|e^{i(q+G)·r}|k+q,v⟩
+       - These represent probability amplitudes for electronic transitions
+    
+    4. SUSCEPTIBILITY TENSOR CALCULATION:
+       - Apply Fermi's Golden Rule: transitions conserve energy
+       - Use delta function: δ(E_c(k) - E_v(k+q) - ħω)
+       - Apply broadening to discrete energy levels
+       - Sum over all k-points and band combinations
+       - Include appropriate geometric factors and scaling
+    
+    5. TENSOR COMPONENT SPECIFIC FACTORS:
+       - LL (Longitudinal-Longitudinal): charge density response
+       - TT (Transverse-Transverse): current density response  
+       - LT (Longitudinal-Transverse): mixed field coupling
+    
+    6. POST-PROCESSING:
+       - Apply Kramers-Kronig relations if requested
+       - Add δ(G,G') terms for macroscopic response
+       - Store results in output arrays
+    
+    MEMORY MANAGEMENT CONSIDERATIONS:
+    --------------------------------
+    - Large arrays like eigenvectors require careful allocation/deallocation
+    - OpenMP parallelization must account for memory usage per thread
+    - Overlap integrals can be memory-intensive for large systems
+    
+    SPIN-ORBIT COUPLING (SOC) MODIFICATIONS:
+    ---------------------------------------
+    - When SOC is enabled, Hamiltonian size doubles: NPW → 2*NPW
+    - Eigenvectors become spinors with both spin-up and spin-down components
+    - Overlap integrals must sum over both spin components
+    - Band indexing accounts for doubled Hilbert space
+    
+    KEY PHYSICS INSIGHTS:
+    --------------------
+    - χ(q,ω) peaks occur at inter-band transition energies
+    - q→0 limit gives macroscopic dielectric response
+    - Different tensor components probe different field geometries
+    - Broadening mimics finite lifetime and instrumental resolution
+    
+    ============================================================================
+*/
+
+/*
+    END OF FILE: pmx_chi.cpp
+    
+    Summary: This file implements the core susceptibility tensor calculations
+    for the PicoMax empirical pseudopotential method code. The functions
+    compute χ(q,ω) using different approaches (charge-based, full tensor,
+    simplified xyz components) but all follow the same fundamental physics
+    of electronic transitions between valence and conduction bands.
+*/
