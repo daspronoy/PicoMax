@@ -100,7 +100,7 @@ inline double diracdelta_lorentzian(double x){
     Physical interpretation:
     - Models thermal broadening from phonon interactions
     - Instrument resolution function
-    - Standard deviation σ = ε
+    - Standard deviation _sum = ε
     - No long tails (compared to Lorentzian)
     - Computationally well-behaved
     
@@ -199,6 +199,48 @@ inline double diracdelta_rect(double x){
     - w: Frequency grid points
     - dw: Frequency spacing
 */
+
+inline Eigen::Vector3cd socCurrent(const Eigen::Vector3d &Gi,      // bra  G‑vector
+                                   const Eigen::Vector3d &Gj,      // ket  G‑vector
+                                   const Eigen::Vector3d &Kvec,    // crystal momentum k
+                                   const pmx::mater      &mat,     // material params (λ_S, λ_A maps)
+                                   const std::vector<Eigen::Vector3d> &atomic_pos){
+    using namespace pmx;
+
+    const Eigen::Vector3d Ki = Kvec + Gi;               //   k + G_i
+    const Eigen::Vector3d Kj = Kvec + Gj;               //   k + G_j
+    const Eigen::Vector3d q  = Gj - Gi;               //   G_j − G_i
+
+    /* λ_S(q²), λ_A(q²) — same lookup as in HamiltonianEPM() */
+    double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
+    double lambda_S_eV = lambda_S_Ry * Ry2eV; // Ry2eV is global
+    double lambda_A_eV = lambda_A_Ry * Ry2eV;  // there is a scale factor for SOC in eV for easy parameter tuning
+
+    /* structure factor  _sum_s e^{ i q·τ_s } /N */
+    double cos_sum = 0.0, sin_sum = 0.0;
+    if (NATOM>0){
+        for (const auto &τ : atomic_pos){
+            cos_sum += std::cos(2.0*pi*q.dot(τ));
+            sin_sum += std::sin(2.0*pi*q.dot(τ));
+        }
+        cos_sum /= NATOM;
+        sin_sum /= NATOM;
+    }
+
+    // const std::complex<double> VSO = λS*cos_sum + im*λA*sin_sum;   // scalar prefactor
+    std::complex<double> VSO= lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
+
+    /* kinematic vector   (K_j × K_i)   (dimless) */
+    const Eigen::Vector3d kin = Kj.cross(Ki);
+
+    /* SOC vector potential  i V_SO (K_j × K_i)  — matches HamiltonianEPM */
+    return im * VSO * kin.cast<std::complex<double>>();
+
+}
+
+
+
+
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
 
     // STEP 1: Preserve original real part for later use
@@ -439,6 +481,14 @@ void chi_LL(env &dat){
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
                                     std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
+                                    Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
+                                    Eigen::Vector3cd v_soc = socCurrent(
+                                        dat.lat.G[p],                // G_i  (bra)
+                                        dat.lat.G[loci_p],           // G_j  (ket)
+                                        K,                           // k‑vector of current slice
+                                        dat.mat,                     // material (λ maps)
+                                        dat.lat.atomic);             // τ_s list
+                                    std::complex<double> momentum_factor = uvec_m[i].dot(v_orb + v_soc);
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
                                     oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
@@ -707,6 +757,13 @@ void chi_tensor(env &dat){
         }
     }
 
+
+
+
+
+
+
+
     std::cout << "  Solving for susceptibility tensor matrix elements..." << std::endl;
     int NBAND_V [NKPT]; // number of valence bands
     std::complex<double> ***C_kq; // eigenvector at k+q
@@ -769,6 +826,14 @@ void chi_tensor(env &dat){
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
         std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
+
+
+
+
+
+
+
+
 
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
