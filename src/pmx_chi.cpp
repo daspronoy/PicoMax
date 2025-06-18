@@ -779,10 +779,26 @@ void chi_tensor(env &dat){
                         for (int v=0; v<NBAND_V[k]; v++){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             oint[k][i][m][c][v] = 0;
-                            for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
-                                oint[k][i][m][c][v] += (conj(C_k[k][c][p]) * C_kq[k][v][dat.lat.loci[m][p]]) 
-                                            * (uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2));
-                            }}
+                            if (i==0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
+                                for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
+                                    int loci_p = dat.lat.loci[m][p];
+                                    // Sum over spin-up and spin-down components
+                                    // Spin-up: index 2*p and 2*loci_p
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    // Spin-down: index 2*p+1 and 2*loci_p+1
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                }}
+                            }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
+                                for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
+                                    int loci_p = dat.lat.loci[m][p];
+                                    std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
+                                    // Sum over spin-up and spin-down components
+                                    // Spin-up: index 2*p and 2*loci_p
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
+                                    // Spin-down: index 2*p+1 and 2*loci_p+1
+                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
+                                }}
+                            }
                         }//loop over v
                     }//loop over c
                 }//loop over i
@@ -792,6 +808,7 @@ void chi_tensor(env &dat){
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
         std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
+
 
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
