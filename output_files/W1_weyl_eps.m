@@ -1,4 +1,4 @@
-filename = ['chi_11_0.01_GA_W1.dat'];
+filename = ['chi_11_G.dat'];
 fid = fopen(filename);
 data= fread(fid,'double');
 % fclose(fid);
@@ -44,8 +44,5 @@ for q=1:nq
     end
 end
 epsij = eye(3*neps)+chiij;
-xaxis(f)=1.23984193/(f*dfreq);
 [V,D]=eigenshuffle(epsij);
 D=sort(D,'descend','ComparisonMethod','real');
-D_f(f,:)=D(:);
-V_f(f,:,:)=V(:,:);

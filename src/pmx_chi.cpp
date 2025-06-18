@@ -200,19 +200,22 @@ inline double diracdelta_rect(double x){
     - dw: Frequency spacing
 */
 
-inline Eigen::Vector3cd socCurrent(const Eigen::Vector3d &Gi,      // bra  G‑vector
-                                   const Eigen::Vector3d &Gj,      // ket  G‑vector
-                                   const Eigen::Vector3d &Kvec,    // crystal momentum k
-                                   const pmx::mater      &mat,     // material params (λ_S, λ_A maps)
-                                   const std::vector<Eigen::Vector3d> &atomic_pos){
+inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
+                                   Eigen::Vector3d Gj,      // ket  G‑vector
+                                   Eigen::Vector3d Kvec,    // crystal momentum k
+                                   pmx::mater      mat_params,     // material params (λ_S, λ_A maps)
+                                   std::vector<Eigen::Vector3d> atomic_pos){
     using namespace pmx;
 
     const Eigen::Vector3d Ki = Kvec + Gi;               //   k + G_i
     const Eigen::Vector3d Kj = Kvec + Gj;               //   k + G_j
     const Eigen::Vector3d q  = Gj - Gi;               //   G_j − G_i
 
+    double q_sq_norm = q.squaredNorm();
+
     /* λ_S(q²), λ_A(q²) — same lookup as in HamiltonianEPM() */
     double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
+    double lambda_S_Ry = pmx::get_soc_form_factor(mat_params.Us_SO_Ry, q_sq_norm);
     double lambda_S_eV = lambda_S_Ry * Ry2eV; // Ry2eV is global
     double lambda_A_eV = lambda_A_Ry * Ry2eV;  // there is a scale factor for SOC in eV for easy parameter tuning
 
@@ -480,7 +483,6 @@ void chi_LL(env &dat){
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
-                                    std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
                                     Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                     Eigen::Vector3cd v_soc = socCurrent(
                                         dat.lat.G[p],                // G_i  (bra)
