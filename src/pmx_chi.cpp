@@ -225,8 +225,8 @@ inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
             // q_vec_soc_dimless is G_j - G_i (dimless multiples of 2pi/a)
             // atom_pos_a_units is tau_s (dimless multiples of a)
             // dot product is dimensionless
-            cos_sum += std::cos(2.0 * pi * q_vec_soc_dimless.dot(atom_pos_a_units));
-            sin_sum += std::sin(2.0 * pi * q_vec_soc_dimless.dot(atom_pos_a_units));
+            cos_sum += std::cos(2.0 * pi * q.dot(atom_pos_a_units));
+            sin_sum += std::sin(2.0 * pi * q.dot(atom_pos_a_units));
         }
     }
 
@@ -242,7 +242,7 @@ inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
     const Eigen::Vector3d kin = Kj.cross(Ki);
     /* SOC vector potential  i V_SO (K_j × K_i)  — matches HamiltonianEPM */
     return im * VSO * kin.cast<std::complex<double>>();
-
+}
 
 
 
