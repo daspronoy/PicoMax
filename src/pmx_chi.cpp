@@ -901,9 +901,9 @@ void chi_tensor(env &dat){
                         std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                         // 
                         tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dEup-dat.freq[f]);
+                                            * (*diracdelta)(dE-dat.freq[f]);
                         tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dEup-dat.freq[f]);
+                                            * (*diracdelta)(dE-dat.freq[f]);
 
                         if (dat.kk==0){
                             tmp_real_2 += dat.lat.KW[k] * Oij.real()
@@ -978,13 +978,17 @@ void chi_tensor(env &dat){
     for (int k=0; k<NKPT; k++){
         for (int i=0; i<NTSR; i++){
             for (int m=0; m<NEPS; m++){
-                delete [] oint[k][i][m];
+                delete [] ointup[k][i][m];
+                delete [] ointdown[k][i][m];
             }
-            delete [] oint[k][i];
+            delete [] ointup[k][i];
+            delete [] ointdown[k][i];
         }
-        delete [] oint[k];
+        delete [] ointup[k];
+        delete [] ointdown[k];
     }
-    delete [] oint;
+    delete [] ointup;
+    delete [] ointdown;
 
     for (int k=0; k<NKPT; k++){
         for (int v=0; v<NBAND_V[k]; v++){
