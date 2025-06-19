@@ -100,7 +100,7 @@ inline double diracdelta_lorentzian(double x){
     Physical interpretation:
     - Models thermal broadening from phonon interactions
     - Instrument resolution function
-    - Standard deviation σ = ε
+    - Standard deviation _sum = ε
     - No long tails (compared to Lorentzian)
     - Computationally well-behaved
     
@@ -199,6 +199,55 @@ inline double diracdelta_rect(double x){
     - w: Frequency grid points
     - dw: Frequency spacing
 */
+
+
+inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
+                                   Eigen::Vector3d Gj,      // ket  G‑vector
+                                   Eigen::Vector3d vec,    // crystal momentum k
+                                   pmx::mater      mat_params,     // material params (λ_S, λ_A maps)
+                                   std::vector<Eigen::Vector3d> atomic_pos){
+    using namespace pmx;
+    const Eigen::Vector3d Ki = Kvec + Gi;               //   k + G_i
+    const Eigen::Vector3d Kj = Kvec + Gj;               //   k + G_j
+    const Eigen::Vector3d q  = Gj   - Gi;               //   G_j − G_i
+    /* λ_S(q²), λ_A(q²) — same lookup as in HamiltonianEPM() */
+    double q_sq_norm = q.squaredNorm();
+    double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
+    double lambda_S_Ry = pmx::get_soc_form_factor(mat_params.Us_SO_Ry, q_sq_norm);
+    const auto   λS = λS_Ry * Ry2eV;
+    const auto   λA = λA_Ry * Ry2eV;
+    /* structure factor  _sum_s e^{ i q·τ_s } /N */
+    // Structure factor part for SOC
+    double cos_sum = 0.0;
+    double sin_sum = 0.0;
+    if (NATOM > 0) { // NATOM is global
+        for (const auto& atom_pos_a_units : atomic_pos) { // atomic_pos are in units of [a]
+            // q_vec_soc_dimless is G_j - G_i (dimless multiples of 2pi/a)
+            // atom_pos_a_units is tau_s (dimless multiples of a)
+            // dot product is dimensionless
+            cos_sum += std::cos(2.0 * pi * q_vec_soc_dimless.dot(atom_pos_a_units));
+            sin_sum += std::sin(2.0 * pi * q_vec_soc_dimless.dot(atom_pos_a_units));
+        }
+    }
+
+    if (NATOM > 0) { // NATOM is global
+        cos_sum /=NATOM;
+        sin_sum /=NATOM;
+    }
+    
+    // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
+    // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
+    std::complex<double> VSO= lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
+    /* kinematic vector   (K_j × K_i)   (dimless) */
+    const Eigen::Vector3d kin = Kj.cross(Ki);
+    /* SOC vector potential  i V_SO (K_j × K_i)  — matches HamiltonianEPM */
+    return im * VSO * kin.cast<std::complex<double>>();
+
+
+
+
+
+
 void kramerskronigtransform(double *ReX, double *ImX, double *w, double dw){
 
     // STEP 1: Preserve original real part for later use
@@ -438,7 +487,16 @@ void chi_LL(env &dat){
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
-                                    std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
+                                    Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
+                                    /* SOC piece – same parameters/maps as Hamiltonian */
+                                    Eigen::Vector3cd v_soc = socCurrent(
+                                        dat.lat.G[p],                // G_i  (bra)
+                                        dat.lat.G[loci_p],           // G_j  (ket)
+                                        K,                           // k‑vector of current slice
+                                        dat.mat,                     // material (λ maps)
+                                        dat.lat.atomic);             // τ_s list
+                                    /* Total current operator */
+                                    std::complex<double> momentum_factor = uvec_m[i].dot(v_orb + v_soc);
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
                                     oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
@@ -791,7 +849,16 @@ void chi_tensor(env &dat){
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
-                                    std::complex<double> momentum_factor = uvec_m[i].dot(dat.lat.G[p]+K+Q/2+dat.lat.G[m]/2);
+                                    Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
+                                    /* SOC piece – same parameters/maps as Hamiltonian */
+                                    Eigen::Vector3cd v_soc = socCurrent(
+                                        dat.lat.G[p],                // G_i  (bra)
+                                        dat.lat.G[loci_p],           // G_j  (ket)
+                                        K,                           // k‑vector of current slice
+                                        dat.mat,                     // material (λ maps)
+                                        dat.lat.atomic);             // τ_s list
+                                    /* Total current operator */
+                                    std::complex<double> momentum_factor = uvec_m[i].dot(v_orb + v_soc);
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
                                     oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
