@@ -214,8 +214,8 @@ inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
     double q_sq_norm = q.squaredNorm();
     double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
     double lambda_S_Ry = pmx::get_soc_form_factor(mat_params.Us_SO_Ry, q_sq_norm);
-    const auto   λS = λS_Ry * Ry2eV;
-    const auto   λA = λA_Ry * Ry2eV;
+    double lambda_S_eV = lambda_S_Ry * Ry2eV; // Ry2eV is global
+    double lambda_A_eV = lambda_A_Ry * Ry2eV;  // there is a scale factor for SOC in eV for easy parameter tuning
     /* structure factor  _sum_s e^{ i q·τ_s } /N */
     // Structure factor part for SOC
     double cos_sum = 0.0;
