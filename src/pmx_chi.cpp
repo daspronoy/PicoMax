@@ -203,7 +203,7 @@ inline double diracdelta_rect(double x){
 
 inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
                                    Eigen::Vector3d Gj,      // ket  G‑vector
-                                   Eigen::Vector3d vec,    // crystal momentum k
+                                   Eigen::Vector3d Kvec,    // crystal momentum k
                                    pmx::mater      mat_params,     // material params (λ_S, λ_A maps)
                                    std::vector<Eigen::Vector3d> atomic_pos){
     using namespace pmx;
