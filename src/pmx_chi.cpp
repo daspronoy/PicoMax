@@ -201,11 +201,11 @@ inline double diracdelta_rect(double x){
 */
 
 
-inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Gi,      // bra  G‑vector
-                                   Eigen::Vector3d Gj,      // ket  G‑vector
-                                   Eigen::Vector3d Kvec,    // crystal momentum k
-                                   pmx::mater      mat_params,     // material params (λ_S, λ_A maps)
-                                   std::vector<Eigen::Vector3d> atomic_pos){
+inline Eigen::Vector3cd socCurrent(Eigen::Vector3d &Gi,      // bra  G‑vector
+                                   Eigen::Vector3d &Gj,      // ket  G‑vector
+                                   Eigen::Vector3d &Kvec,    // crystal momentum k
+                                   pmx::mater      &mat_params,     // material params (λ_S, λ_A maps)
+                                   std::vector<Eigen::Vector3d> &atomic_pos){
     using namespace pmx;
     const Eigen::Vector3d Ki = Kvec + Gi;               //   k + G_i
     const Eigen::Vector3d Kj = Kvec + Gj;               //   k + G_j
@@ -775,14 +775,20 @@ void chi_tensor(env &dat){
     //======================================================================
     // initialize large temporary variables
     // overlap integral, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
-    std::complex<double> *****oint;
-    oint = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    // std::complex<double> *****oint;
+    std::complex<double> *****ointup;
+    std::complex<double> *****ointdown;
+    ointup = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointdown = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
     for (int k=0; k<NKPT; k++){
-        oint[k] = new std::complex<double> ***[3];
+        ointup[k] = new std::complex<double> ***[3];
+        ointdown[k] = new std::complex<double> ***[3];
         for (int i=0; i<NTSR; i++){
-            oint[k][i] = new std::complex<double> **[NEPS];
+            ointup[k][i] = new std::complex<double> **[NEPS];
+            ointdown[k][i] = new std::complex<double> **[NEPS];
             for (int m=0; m<NEPS; m++){
-                oint[k][i][m] = new std::complex<double> *[NBAND_C[k]];
+                ointup[k][i][m] = new std::complex<double> *[NBAND_C[k]];
+                ointdown[k][i][m] = new std::complex<double> *[NBAND_C[k]];
             }
         }
     }
@@ -833,18 +839,20 @@ void chi_tensor(env &dat){
                 std::vector<Eigen::Vector3cd> uvec_m = uvec_LT(Q+dat.lat.G[m]);
                 for (int i=0; i<NTSR; i++){
                     for (int c=0; c<NBAND_C[k]; c++){
-                        oint[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
+                        ointup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
+                        ointdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         for (int v=0; v<NBAND_V[k]; v++){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
-                            oint[k][i][m][c][v] = 0;
+                            ointup[k][i][m][c][v] = 0;
+                            ointdown[k][i][m][c][v] = 0;
                             if (i==0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
-                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                 }}
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
@@ -861,9 +869,9 @@ void chi_tensor(env &dat){
                                     std::complex<double> momentum_factor = uvec_m[i].dot(v_orb + v_soc);
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
-                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    oint[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
                                 }}
                             }
                         }//loop over v
@@ -888,21 +896,38 @@ void chi_tensor(env &dat){
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
-                    double dE = E_k[k][c]-E_kq[k][v];
-                    std::complex<double> Oij = oint[k][i][m][c][v] * conj(oint[k][j][n][c][v]);
-                    
-                    // 
-                    tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                          * (*diracdelta)(dE-dat.freq[f]);
-                    tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                          * (*diracdelta)(dE-dat.freq[f]);
+                    if (c % 2 == 0 && v % 2 == 0){
+                        double dE = E_k[k][c]-E_kq[k][v];
+                        std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                        // 
+                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                            * (*diracdelta)(dEup-dat.freq[f]);
+                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                            * (*diracdelta)(dEup-dat.freq[f]);
 
-                    if (dat.kk==0){
-                        tmp_real_2 += dat.lat.KW[k] * Oij.real()
-                                         / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                        tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-                                         / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                        if (dat.kk==0){
+                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
+                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
+                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                        }
+                    } else if (c % 2 != 0 && v % 2 != 0){
+                        double dE = E_k[k][c]-E_kq[k][v];
+                        std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                        // 
+                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                            * (*diracdelta)(dE-dat.freq[f]);
+                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                            * (*diracdelta)(dE-dat.freq[f]);
+
+                        if (dat.kk==0){
+                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
+                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
+                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                        }
                     }
+                    
                 }}}
                 if (f==0){
                     tmp_imag_1 = 0;
