@@ -845,7 +845,7 @@ void chi_tensor(env &dat){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             ointup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
-                            if (i==0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
+                            if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
                                     int loci_p = dat.lat.loci[m][p];
                                     // Sum over spin-up and spin-down components
