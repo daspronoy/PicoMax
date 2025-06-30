@@ -847,12 +847,20 @@ void chi_tensor(env &dat){
                             ointdown[k][i][m][c][v] = 0;
                             if (i==0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
+                                    // int loci_p = dat.lat.loci[m][p];
+                                    // // Sum over spin-up and spin-down components
+                                    // // Spin-up: index 2*p and 2*loci_p
+                                    // ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    // // Spin-down: index 2*p+1 and 2*loci_p+1
+                                    // ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                     int loci_p = dat.lat.loci[m][p];
-                                    // Sum over spin-up and spin-down components
-                                    // Spin-up: index 2*p and 2*loci_p
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    // Sum over both spin components for density operator
+                                    std::complex<double> total_overlap = 
+                                        conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] +      // spin-up
+                                        conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];   // spin-down
+                                    
+                                    ointup[k][i][m][c][v] += total_overlap;
+                                    ointdown[k][i][m][c][v] += total_overlap; // Same for both since it's density
                                 }}
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
@@ -896,35 +904,42 @@ void chi_tensor(env &dat){
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
-                    if (c % 2 == 0 && v % 2 == 0){
-                        double dE = E_k[k][c]-E_kq[k][v];
+                    if (i==0 && j==0) { // Density-density correlation
+                        // Use only one of the arrays since they're identical for i=j=0
                         std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                        // 
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
+                        // ... rest of calculation
+                    } else {
+                        // Current-current correlations - separate by spin as before
+                        if (c % 2 == 0 && v % 2 == 0){
+                            double dE = E_k[k][c]-E_kq[k][v];
+                            std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            // 
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                                * (*diracdelta)(dE-dat.freq[f]);
 
-                        if (dat.kk==0){
-                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                        }
-                    } else if (c % 2 != 0 && v % 2 != 0){
-                        double dE = E_k[k][c]-E_kq[k][v];
-                        std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                        // 
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
+                            if (dat.kk==0){
+                                tmp_real_2 += dat.lat.KW[k] * Oij.real()
+                                                / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                                tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
+                                                / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                            }
+                        } else if (c % 2 != 0 && v % 2 != 0){
+                            double dE = E_k[k][c]-E_kq[k][v];
+                            std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            // 
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                                * (*diracdelta)(dE-dat.freq[f]);
 
-                        if (dat.kk==0){
-                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                            if (dat.kk==0){
+                                tmp_real_2 += dat.lat.KW[k] * Oij.real()
+                                                / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                                tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
+                                                / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
+                            }
                         }
                     }
                     
