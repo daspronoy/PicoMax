@@ -868,6 +868,25 @@ void chi_tensor(env &dat){
             // overlap integrals
             for (int m=0; m<NEPS; m++){
                 std::vector<Eigen::Vector3cd> uvec_m = uvec_LT(Q+dat.lat.G[m]);
+                
+                // Pre-compute active G indices for this m ONCE per m
+                std::vector<int> active_G_indices;
+                for (int p=0; p<NPW; p++){
+                    if (dat.lat.loci[m][p] != -1){
+                        active_G_indices.push_back(p);
+                    }
+                }
+                
+                // Pre-calculate SOC contribution once per (k,m) pair for active indices only
+                std::vector<Eigen::Vector3cd> v_soc_cache(active_G_indices.size());
+                for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
+                    int p = active_G_indices[i_active];
+                    int loci_p = dat.lat.loci[m][p];
+                    v_soc_cache[i_active] = socCurrent(
+                        dat.lat.G[p], dat.lat.G[loci_p], dat.mat, dat.lat.atomic);
+                }
+
+
                 for (int i=0; i<NTSR; i++){
                     for (int c=0; c<NBAND_C[k]; c++){
                         ointup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
@@ -881,35 +900,31 @@ void chi_tensor(env &dat){
                             ointdownup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
                             if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
-                                for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
+                                // Loop over only active indices
+                                for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
+                                    int p = active_G_indices[i_active];
                                     int loci_p = dat.lat.loci[m][p];
-                                    // Sum over spin-up and spin-down components
-                                    // Spin-up: index 2*p and 2*loci_p
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
-                                    ointupdown[k][i][m][c][v] = 0;
-                                    ointdownup[k][i][m][c][v] = 0;
-                                }}
-                            }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
-                                for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
-                                    int loci_p = dat.lat.loci[m][p];
-                                    Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
-                                    /* SOC piece – same parameters/maps as Hamiltonian */
-                                    Eigen::Vector3cd v_soc = socCurrent(
-                                        K,                // G_i  (bra)
-                                        K+Q,           // G_j  (ket)
-                                        dat.mat,                     // material (λ maps)
-                                        dat.lat.atomic);             // τ_s list
                                     
-                                    // Sum over spin-up and spin-down components
-                                    // Spin-up: index 2*p and 2*loci_p
-                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_soc);
-                                    // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_soc);
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_orb);
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_orb);
-                                }}
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                }
+                            }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
+                                // Loop over only active indices
+                                for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
+                                    int p = active_G_indices[i_active];
+                                    int loci_p = dat.lat.loci[m][p];
+                                    
+                                    Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
+                                    
+                                    std::complex<double> soc_contribution = uvec_m[i].dot(v_soc_cache[i_active]);
+                                    std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
+                                    
+                                    // Apply contributions
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                    ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                }
                             }
                         }//loop over v
                     }//loop over c
@@ -936,43 +951,33 @@ void chi_tensor(env &dat){
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
-                    if (c % 2 == 0 && v % 2 == 0){
-                        //up-up spin
-                        double dE = E_k[k][c]-E_kq[k][v];
-                        std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                        // 
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-
-                    } else if (c % 2 != 0 && v % 2 != 0){
-                        //down-down spin
-                        double dE = E_k[k][c]-E_kq[k][v];
-                        std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                        // 
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                    } else if (c % 2 == 0 && v % 2 != 0){
-                        //up-down spin
-                        double dE = E_k[k][c]-E_kq[k][v];
-                        std::complex<double> Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                    } else if (c % 2 == 0 && v % 2 != 0){
-                        //down-up spin
-                        double dE = E_k[k][c]-E_kq[k][v];
-                        std::complex<double> Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                            * (*diracdelta)(dE-dat.freq[f]);
-                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                            * (*diracdelta)(dE-dat.freq[f]);
+                    // Determine actual spin indices instead of using modulo
+                    int c_spin = c % 2;  // 0=up, 1=down
+                    int v_spin = v % 2;
+                    double dE = E_k[k][c]-E_kq[k][v];
+                    if (c_spin == v_spin) {
+                        // Same spin: use appropriate arrays
+                        if (c_spin == 0) {
+                            // Both spin-up
+                            std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                        } else {
+                            // Both spin-down  
+                            std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                        }
+                    } else {
+                        if (c_spin == 0) {
+                            // up-down spin
+                            std::complex<double> Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                        } else {
+                            // down-up spin  
+                            std::complex<double> Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                        }
                     }
-                    
+                    tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                * (*diracdelta)(dE-dat.freq[f]);
+                    tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                        * (*diracdelta)(dE-dat.freq[f]);    
+
                 }}}
                 if (f==0){
                     tmp_imag_1 = 0;
