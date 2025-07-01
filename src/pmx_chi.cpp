@@ -955,23 +955,23 @@ void chi_tensor(env &dat){
                     int c_spin = c % 2;  // 0=up, 1=down
                     int v_spin = v % 2;
                     double dE = E_k[k][c]-E_kq[k][v];
-                    std::complex<double> Oij
+                    std::complex<double> Oij;
                     if (c_spin == v_spin) {
                         // Same spin: use appropriate arrays
                         if (c_spin == 0) {
                             // Both spin-up
-                            std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                         } else {
-                            // Both spin-down  
-                            std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            // Both spin-down
+                            Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                         }
                     } else {
                         if (c_spin == 0) {
                             // up-down spin
-                            std::complex<double> Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
                         } else {
-                            // down-up spin  
-                            std::complex<double> Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            // down-up spin
+                            Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
                         }
                     }
                     tmp_imag_1 += dat.lat.KW[k] * Oij.real()
