@@ -799,17 +799,27 @@ void chi_tensor(env &dat){
     // std::complex<double> *****oint;
     std::complex<double> *****ointup;
     std::complex<double> *****ointdown;
+    std::complex<double> *****ointupdown;
+    std::complex<double> *****ointdownup;
     ointup = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
     ointdown = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointupdown = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointdownup = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
     for (int k=0; k<NKPT; k++){
         ointup[k] = new std::complex<double> ***[3];
         ointdown[k] = new std::complex<double> ***[3];
+        ointupdown[k] = new std::complex<double> ***[3];
+        ointdownup[k] = new std::complex<double> ***[3];
         for (int i=0; i<NTSR; i++){
             ointup[k][i] = new std::complex<double> **[NEPS];
             ointdown[k][i] = new std::complex<double> **[NEPS];
+            ointupdown[k][i] = new std::complex<double> **[NEPS];
+            ointdownup[k][i] = new std::complex<double> **[NEPS];
             for (int m=0; m<NEPS; m++){
                 ointup[k][i][m] = new std::complex<double> *[NBAND_C[k]];
                 ointdown[k][i][m] = new std::complex<double> *[NBAND_C[k]];
+                ointupdown[k][i][m] = new std::complex<double> *[NBAND_C[k]];
+                ointdownup[k][i][m] = new std::complex<double> *[NBAND_C[k]];
             }
         }
     }
