@@ -201,15 +201,13 @@ inline double diracdelta_rect(double x){
 */
 
 
-inline Eigen::Vector3cd socCurrent(Eigen::Vector3d &Gi,      // bra  G‑vector
-                                   Eigen::Vector3d &Gj,      // ket  G‑vector
-                                   Eigen::Vector3d &Kvec,    // crystal momentum k
+inline Eigen::Vector3cd socCurrent(Eigen::Vector3d &Ki,      // bra  G‑vector
+                                   Eigen::Vector3d &Kj,      // ket  G‑vector
                                    pmx::mater      &mat_params,     // material params (λ_S, λ_A maps)
                                    std::vector<Eigen::Vector3d> &atomic_pos){
     using namespace pmx;
-    const Eigen::Vector3d Ki = Kvec + Gi;               //   k + G_i
-    const Eigen::Vector3d Kj = Kvec + Gj;               //   k + G_j
-    const Eigen::Vector3d q  = Gj   - Gi;               //   G_j − G_i
+    const Eigen::Vector3d q  = Kj  - Ki;               //   G_j − G_i
+
     /* λ_S(q²), λ_A(q²) — same lookup as in HamiltonianEPM() */
     double q_sq_norm = q.squaredNorm();
     double lambda_A_Ry = pmx::get_soc_form_factor(mat_params.Ua_SO_Ry, q_sq_norm);
@@ -238,10 +236,34 @@ inline Eigen::Vector3cd socCurrent(Eigen::Vector3d &Gi,      // bra  G‑vector
     // Scalar part of VSO from Mathematica: (Lambda_S * cos_qT + Lambda_A * sin_qT)
     // double VSO_scalar_struct_part = lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
     std::complex<double> VSO= lambda_S_eV * cos_sum + im * lambda_A_eV * sin_sum;
-    /* kinematic vector   (K_j × K_i)   (dimless) */
-    const Eigen::Vector3d kin = Kj.cross(Ki);
-    /* SOC vector potential  i V_SO (K_j × K_i)  — matches HamiltonianEPM */
-    return im * VSO * kin.cast<std::complex<double>>();
+
+    // Compute the SOC matrix element: ⟨G_i| im * VSO * q × σ |G_j⟩
+    // 
+    // The cross product q × σ gives a vector operator:
+    // (q × σ)_x = q_y * σ_z - q_z * σ_y
+    // (q × σ)_y = q_z * σ_x - q_x * σ_z  
+    // (q × σ)_z = q_x * σ_y - q_y * σ_x
+    //
+    // For the matrix elements between plane wave states |G_i⟩ and |G_j⟩,
+    // the spatial part gives δ(G_j - G_i), so this is only non-zero when G_i = G_j
+    // The spin matrix elements for the cross product components are:
+    
+    Eigen::Vector3cd soc_cross_product;
+    
+    // For a spinor basis |G,↑⟩, |G,↓⟩, the matrix elements are:
+    // x-component: ⟨↑| (q_y σ_z - q_z σ_y) |↓⟩ = q_y * 1 - q_z * (-im) = q_y + im * q_z
+    //              ⟨↓| (q_y σ_z - q_z σ_y) |↑⟩ = q_y * (-1) - q_z * (im) = -q_y - im * q_z
+    soc_cross_product(0) = im * VSO * (q(1) + im * q(2));  // x-component: im*VSO*(q_y + i*q_z)
+    
+    // y-component: ⟨↑| (q_z σ_x - q_x σ_z) |↓⟩ = q_z * 1 - q_x * 1 = q_z - q_x
+    //              ⟨↓| (q_z σ_x - q_x σ_z) |↑⟩ = q_z * 1 - q_x * (-1) = q_z + q_x
+    soc_cross_product(1) = im * VSO * (q(2) - q(0));       // y-component: im*VSO*(q_z - q_x)
+    
+    // z-component: ⟨↑| (q_x σ_y - q_y σ_x) |↓⟩ = q_x * (-im) - q_y * 1 = -im * q_x - q_y
+    //              ⟨↓| (q_x σ_y - q_y σ_x) |↑⟩ = q_x * (im) - q_y * 1 = im * q_x - q_y
+    soc_cross_product(2) = im * VSO * (-im * q(0) - q(1)); // z-component: im*VSO*(-i*q_x - q_y)
+
+    return soc_cross_product;
 }
 
 
@@ -492,7 +514,6 @@ void chi_LL(env &dat){
                                     Eigen::Vector3cd v_soc = socCurrent(
                                         dat.lat.G[p],                // G_i  (bra)
                                         dat.lat.G[loci_p],           // G_j  (ket)
-                                        K,                           // k‑vector of current slice
                                         dat.mat,                     // material (λ maps)
                                         dat.lat.atomic);             // τ_s list
                                     /* Total current operator */
@@ -844,6 +865,8 @@ void chi_tensor(env &dat){
                         for (int v=0; v<NBAND_V[k]; v++){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             ointup[k][i][m][c][v] = 0;
+                            ointupdown[k][i][m][c][v] = 0;
+                            ointdownup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
                             if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
@@ -853,6 +876,8 @@ void chi_tensor(env &dat){
                                     ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
                                     ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    ointupdown[k][i][m][c][v] = 0;
+                                    ointdownup[k][i][m][c][v] = 0;
                                 }}
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 for (int p=0; p<NPW; p++){if (dat.lat.loci[m][p]!=-1){
@@ -860,18 +885,18 @@ void chi_tensor(env &dat){
                                     Eigen::Vector3cd v_orb =(dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                     /* SOC piece – same parameters/maps as Hamiltonian */
                                     Eigen::Vector3cd v_soc = socCurrent(
-                                        dat.lat.G[p],                // G_i  (bra)
-                                        dat.lat.G[loci_p],           // G_j  (ket)
-                                        K,                           // k‑vector of current slice
+                                        K,                // G_i  (bra)
+                                        K+Q,           // G_j  (ket)
                                         dat.mat,                     // material (λ maps)
                                         dat.lat.atomic);             // τ_s list
-                                    /* Total current operator */
-                                    std::complex<double> momentum_factor = uvec_m[i].dot(v_orb + v_soc);
+                                    
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * momentum_factor;
+                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_orb + v_soc);
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * momentum_factor;
+                                    ointdownup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_orb - v_soc);
+                                    ointup[k][i][m][c][v] = 0;
+                                    ointdown[k][i][m][c][v] = 0;
                                 }}
                             }
                         }//loop over v
@@ -885,6 +910,9 @@ void chi_tensor(env &dat){
         std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
 
+
+
+        
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
         #pragma omp parallel for collapse(4)
@@ -897,6 +925,7 @@ void chi_tensor(env &dat){
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
                     if (c % 2 == 0 && v % 2 == 0){
+                        //up-up spin
                         double dE = E_k[k][c]-E_kq[k][v];
                         std::complex<double> Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                         // 
@@ -905,13 +934,8 @@ void chi_tensor(env &dat){
                         tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                             * (*diracdelta)(dE-dat.freq[f]);
 
-                        if (dat.kk==0){
-                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                        }
                     } else if (c % 2 != 0 && v % 2 != 0){
+                        //down-down spin
                         double dE = E_k[k][c]-E_kq[k][v];
                         std::complex<double> Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                         // 
@@ -919,13 +943,22 @@ void chi_tensor(env &dat){
                                             * (*diracdelta)(dE-dat.freq[f]);
                         tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                             * (*diracdelta)(dE-dat.freq[f]);
-
-                        if (dat.kk==0){
-                            tmp_real_2 += dat.lat.KW[k] * Oij.real()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                            tmp_imag_2 += dat.lat.KW[k] * Oij.imag()
-                                            / (dE) / (dE*dE-dat.freq[f]*dat.freq[f]);
-                        }
+                    } else if (c % 2 == 0 && v % 2 != 0){
+                        //up-down spin
+                        double dE = E_k[k][c]-E_kq[k][v];
+                        std::complex<double> Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                            * (*diracdelta)(dE-dat.freq[f]);
+                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                            * (*diracdelta)(dE-dat.freq[f]);
+                    } else if (c % 2 == 0 && v % 2 != 0){
+                        //down-up spin
+                        double dE = E_k[k][c]-E_kq[k][v];
+                        std::complex<double> Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                        tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                            * (*diracdelta)(dE-dat.freq[f]);
+                        tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                            * (*diracdelta)(dE-dat.freq[f]);
                     }
                     
                 }}}
@@ -980,15 +1013,23 @@ void chi_tensor(env &dat){
             for (int m=0; m<NEPS; m++){
                 delete [] ointup[k][i][m];
                 delete [] ointdown[k][i][m];
+                delete [] ointupdown[k][i][m];
+                delete [] ointdownup[k][i][m];
             }
             delete [] ointup[k][i];
             delete [] ointdown[k][i];
+            delete [] ointdownup[k][i];
+            delete [] ointupdown[k][i];
         }
         delete [] ointup[k];
         delete [] ointdown[k];
+        delete [] ointdownup[k];
+        delete [] ointupdown[k];
     }
     delete [] ointup;
     delete [] ointdown;
+    delete [] ointupdown;
+    delete [] ointdownup;
 
     for (int k=0; k<NKPT; k++){
         for (int v=0; v<NBAND_V[k]; v++){
