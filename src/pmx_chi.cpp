@@ -862,6 +862,8 @@ void chi_tensor(env &dat){
                     for (int c=0; c<NBAND_C[k]; c++){
                         ointup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         ointdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
+                        ointupdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
+                        ointdownup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         for (int v=0; v<NBAND_V[k]; v++){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             ointup[k][i][m][c][v] = 0;
