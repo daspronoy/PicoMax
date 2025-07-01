@@ -201,12 +201,12 @@ inline double diracdelta_rect(double x){
 */
 
 
-inline Eigen::Vector3cd socCurrent(Eigen::Vector3d &Ki,      // bra  G‑vector
-                                   Eigen::Vector3d &Kj,      // ket  G‑vector
-                                   pmx::mater      &mat_params,     // material params (λ_S, λ_A maps)
-                                   std::vector<Eigen::Vector3d> &atomic_pos){
+inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Ki,      // bra  G‑vector
+                                   Eigen::Vector3d Kj,      // ket  G‑vector
+                                   pmx::mater      mat_params,     // material params (λ_S, λ_A maps)
+                                   std::vector<Eigen::Vector3d> atomic_pos){
     using namespace pmx;
-    const Eigen::Vector3d q  = Kj  - Ki;               //   G_j − G_i
+    Eigen::Vector3d q  = Kj  - Ki;               //   G_j − G_i
 
     /* λ_S(q²), λ_A(q²) — same lookup as in HamiltonianEPM() */
     double q_sq_norm = q.squaredNorm();
