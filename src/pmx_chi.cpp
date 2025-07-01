@@ -904,11 +904,11 @@ void chi_tensor(env &dat){
                                     
                                     // Sum over spin-up and spin-down components
                                     // Spin-up: index 2*p and 2*loci_p
-                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_orb + v_soc);
+                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_soc);
                                     // Spin-down: index 2*p+1 and 2*loci_p+1
-                                    ointdownup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_orb - v_soc);
-                                    ointup[k][i][m][c][v] = 0;
-                                    ointdown[k][i][m][c][v] = 0;
+                                    ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_soc);
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * uvec_m[i].dot(v_orb);
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * uvec_m[i].dot(v_orb);
                                 }}
                             }
                         }//loop over v
