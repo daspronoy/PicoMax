@@ -952,28 +952,12 @@ void chi_tensor(env &dat){
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
                     // Determine actual spin indices instead of using modulo
-                    int c_spin = c % 2;  // 0=up, 1=down
-                    int v_spin = v % 2;
                     double dE = E_k[k][c]-E_kq[k][v];
-                    std::complex<double> Oij;
-                    if (c_spin == v_spin) {
-                        // Same spin: use appropriate arrays
-                        if (c_spin == 0) {
-                            // Both spin-up
-                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                        } else {
-                            // Both spin-down  
-                            Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                        }
-                    } else {
-                        if (c_spin == 0) {
-                            // up-down spin
-                            Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                        } else {
-                            // down-up spin
-                            Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                        }
-                    }
+                    std::complex<double> Oij = 
+                        ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]) +           // ↑↑
+                        ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]) +       // ↓↓  
+                        ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]) +   // ↑↓
+                        ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);    // ↓↑
                     tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                 * (*diracdelta)(dE-dat.freq[f]);
                     tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
