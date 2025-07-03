@@ -989,9 +989,11 @@ void chi_tensor(env &dat){
                 if (i % 3 !=0 && j % 3 !=0){
                     tmp_imag_1 /= (dat.freq[f]*dat.freq[f]);
                     tmp_real_1 /= (dat.freq[f]*dat.freq[f]);
-                } else if (i % 3==0 || j % 3==0){ //LT
-                    tmp_imag_1 /= (dat.freq[f]);
-                    tmp_real_1 /= (dat.freq[f]);
+                } else if (i % 3==0 || j % 3==0){
+                    if (i!=j){ //LT
+                        tmp_imag_1 /= dat.freq[f];
+                        tmp_real_1 /= dat.freq[f];
+                    }
                 }
                 dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
                 dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
