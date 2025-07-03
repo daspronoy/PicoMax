@@ -979,10 +979,10 @@ void chi_tensor(env &dat){
                     tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                         * (*diracdelta)(dE-dat.freq[f]);    
                 }}}
-                if (i == 0 && j == 0){// LL
-                    tmp_imag_1 *= 2.0;
-                    tmp_real_1 *= 2.0;
-                }
+                // if (i == 0 && j == 0){// LL
+                //     tmp_imag_1 *= 2.0;
+                //     tmp_real_1 *= 2.0;
+                // }
                 if (f==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
