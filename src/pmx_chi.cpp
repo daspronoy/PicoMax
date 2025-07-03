@@ -987,8 +987,17 @@ void chi_tensor(env &dat){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
-                    tmp_imag_1 /= (dat.freq[f]*dat.freq[f]);
-                    tmp_real_1 /= (dat.freq[f]*dat.freq[f]);
+                    if (i%3==0 && j%3==0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+                        tmp_real_1 *= 1 / (Q.norm()*Q.norm());
+                    } else if ( (i%3==0 || j%3==0) && i!=j ){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                    } else {
+                        // TT
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                    }
                 }
                 dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
                 dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
