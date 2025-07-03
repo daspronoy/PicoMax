@@ -986,11 +986,10 @@ void chi_tensor(env &dat){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }
-                if (i==j){
-                    if (i % 3 !=0)
+                if (i % 3 !=0 && j % 3 !=0){
                     tmp_imag_1 /= (dat.freq[f]*dat.freq[f]);
                     tmp_real_1 /= (dat.freq[f]*dat.freq[f]);
-                } else {
+                } else if (i % 3==0 || j % 3==0){ //LT
                     tmp_imag_1 /= (dat.freq[f]);
                     tmp_real_1 /= (dat.freq[f]);
                 }
