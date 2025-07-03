@@ -904,7 +904,7 @@ void chi_tensor(env &dat){
                                 for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                     int p = active_G_indices[i_active];
                                     int loci_p = dat.lat.loci[m][p];
-                                    Eigen::Vector3d Q_Gm = dat.lat.G[m] + Q;
+                                    Eigen::Vector3cd Q_Gm = (dat.lat.G[m] + Q).cast<std::complex<double>>();
                                     double Q_Gm_norm = Q_Gm.squaredNorm();
 
                                     ointup[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
