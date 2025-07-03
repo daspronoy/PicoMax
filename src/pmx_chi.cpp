@@ -906,9 +906,10 @@ void chi_tensor(env &dat){
                                     int loci_p = dat.lat.loci[m][p];
                                     Eigen::Vector3cd Q_Gm = (dat.lat.G[m] + Q).cast<std::complex<double>>();
                                     double Q_Gm_norm = Q_Gm.squaredNorm();
-
-                                    ointup[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    ointdown[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    if (Q_Gm_norm >= 1e-8) {
+                                        ointup[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                        ointdown[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    }
                                 }
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
