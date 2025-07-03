@@ -993,7 +993,7 @@ void chi_tensor(env &dat){
                     } else if ( (i%3==0 || j%3==0) && i!=j && (Q + dat.lat.G[n]).norm()>=1e-8){
                         tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
                         tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
-                    } else {
+                    } else if (i%3 != 0 && j%3 != 0){
                         // TT
                         tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
                         tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
