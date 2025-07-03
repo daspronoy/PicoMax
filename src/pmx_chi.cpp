@@ -904,12 +904,9 @@ void chi_tensor(env &dat){
                                 for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                     int p = active_G_indices[i_active];
                                     int loci_p = dat.lat.loci[m][p];
-                                    Eigen::Vector3cd Q_Gm = (dat.lat.G[m] + Q).cast<std::complex<double>>();
-                                    double Q_Gm_norm = Q_Gm.squaredNorm();
-                                    if (Q_Gm_norm >= 1e-8) {
-                                        ointup[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                        ointdown[k][i][m][c][v] += (1/Q_Gm_norm) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
-                                    }
+                                    
+                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                 }
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
@@ -985,19 +982,12 @@ void chi_tensor(env &dat){
                 if (f==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
-                } else {
-                    if (i % 3 !=0 && j % 3 !=0){
-                        tmp_imag_1 /= (dat.freq[f]*dat.freq[f]);
-                        tmp_real_1 /= (dat.freq[f]*dat.freq[f]);
-                    } else if (i % 3==0 || j % 3==0){
-                        if (i!=j){ //LT
-                            tmp_imag_1 /= dat.freq[f];
-                            tmp_real_1 /= dat.freq[f];
-                        }
-                    }
+                }else{
+                    tmp_imag_1 /= (dat.freq[f]*dat.freq[f]);
+                    tmp_real_1 /= (dat.freq[f]*dat.freq[f]);
                 }
-                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
+                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1+2*tmp_imag_2);
+                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1+2*tmp_real_2);
             }
         }}}}
         #pragma omp barrier
