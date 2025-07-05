@@ -725,8 +725,9 @@ void chi_tensor(env &dat){
     }
     NTSR = 3;
 
-    // scalefactor
+    // scalefactor (CGS)
     double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+    double SCALEFACTOR2 = pow(dat.lat.bz_volume * pow(e,2) / (2.0 * pow(pi,2) * eV) , 0.5);
 
     // initialize susceptibility tensor matrix elements
     dat.ReXij = new double *****[NQ];
@@ -899,14 +900,14 @@ void chi_tensor(env &dat){
                             ointupdown[k][i][m][c][v] = 0;
                             ointdownup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
-                            if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
+                            if (i % 3 == 0 && (Q + dat.lat.G[m]).norm()>=1e-8){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
                                 // Loop over only active indices
                                 for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                     int p = active_G_indices[i_active];
                                     int loci_p = dat.lat.loci[m][p];
-                                    
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+
+                                    ointup[k][i][m][c][v] += SCALEFACTOR2 * a*angstrom/ (2.0 * pi * (Q + dat.lat.G[m]).norm()) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    ointdown[k][i][m][c][v] += SCALEFACTOR2 * a*angstrom/ (2.0 * pi * (Q + dat.lat.G[m]).norm()) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                 }
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
@@ -915,15 +916,15 @@ void chi_tensor(env &dat){
                                     int loci_p = dat.lat.loci[m][p];
                                     
                                     Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
-                                    
-                                    std::complex<double> soc_contribution = uvec_m[i].dot(v_soc_cache[i_active]);
-                                    std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
+
+                                    std::complex<double> soc_contribution = (hbar * eV * a * angstrom / (4 * pow(e_m,2) * 2.0*pi)) * uvec_m[i].dot(v_soc_cache[i_active]);
+                                    std::complex<double> orb_contribution = (2.0*pi/(a*angstrom)) * (hbar / e_m)* uvec_m[i].dot(v_orb);
                                     
                                     // Apply contributions
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
-                                    ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
-                                    ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                    ointup[k][i][m][c][v] += SCALEFACTOR2/(pow(eV,2)) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
+                                    ointdown[k][i][m][c][v] += SCALEFACTOR2/(pow(eV,2)) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                    ointupdown[k][i][m][c][v] += SCALEFACTOR2/(pow(eV,2)) * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                    ointdownup[k][i][m][c][v] -= SCALEFACTOR2/(pow(eV,2)) * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                                 }
                             }
                         }//loop over v
@@ -987,17 +988,17 @@ void chi_tensor(env &dat){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
-                    if (i%3==0 && i==j && (Q + dat.lat.G[n]).norm()>=1e-8 && (Q + dat.lat.G[m]).norm()>=1e-8){
-                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
-                        tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
-                    } else if (i%3 != 0 && i==j){
+                    if ( (i%3==0 || j%3==0) && i!=j && (Q + dat.lat.G[n]).norm()>=1e-8){
+                        tmp_imag_1 *= 1 / dat.freq[f];
+                        tmp_real_1 *= 1 / dat.freq[f];
+                    } else if (i%3 != 0 && j%3 != 0){
                         // TT
                         tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
                         tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
                     }
                 }
-                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
+                dat.ImXij[q][i][j][m][n][f] = tmp_imag_1;
+                dat.ReXij[q][i][j][m][n][f] = tmp_real_1;
             }
         }}}}
         #pragma omp barrier
