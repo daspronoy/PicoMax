@@ -998,15 +998,15 @@ void chi_tensor(env &dat){
 
                         dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
                         dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
-                    } else if (i%3==0 && j%3==0 && (Q + dat.lat.G[n]).norm()>=1e-3 && (Q + dat.lat.G[m]).norm()>=1e-3){
-                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
-                        tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+                    } else if (i%3==0 && j%3==0 && (dat.lat.G[n]).squaredNorm()!=0 && (dat.lat.G[m]).squaredNorm()!=0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).squaredNorm()*(Q + dat.lat.G[n]).squaredNorm());
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).squaredNorm()*(Q + dat.lat.G[n]).squaredNorm());
 
                         dat.ImXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_imag_1);
                         dat.ReXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_real_1);
-                    } else if ( (i%3==0 || j%3==0) && i!=j && (Q + dat.lat.G[n]).norm()>=1e-5){
-                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
-                        tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                    } else if ( (i%3==0 || j%3==0) && i!=j && (dat.lat.G[n]).squaredNorm()!=0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).squaredNorm()*dat.freq[f]);
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).squaredNorm()*dat.freq[f]);
 
                         dat.ImXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_imag_1);
                         dat.ReXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_real_1);
