@@ -725,22 +725,13 @@ void chi_tensor(env &dat){
     }
     NTSR = 3;
 
-    // scalefactors for the susceptibility tensor
+    // scalefactor
+    double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+    double SF = 4*pi*dat.lat.bz_volume*pow(2*pi/(a*angstrom),3)*pow(e,2)/eV; // scale factor for susceptibility tensor ~10e-8
+    double SF_TT = pow(hbar,4) * pow(1/(a*angstrom),2) / (pow(e_m,2) * pow(eV,2)); // scale factor for transverse-transverse susceptibility tensor
+    double SF_LL = pow((a*angstrom),2); // scale factor for longitudinal-transverse susceptibility tensor
     double SF_SOC = (1/(4 * e_m * pow(3e+10,2))) * eV; // scale factor for spin-orbit coupling susceptibility tensor
-
-    // STEP 2: Define physical scaling factors for different tensor components
-    // These convert from atomic units to practical units (eV, Å, etc.)
-    double SCALEFACTOR = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-    
-    // Longitudinal-longitudinal: charge density response  
-    double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
-    
-    // Transverse-transverse: current density response
-    double SCALEFACTOR_TT = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
-    
-    // Longitudinal-transverse: mixed coupling terms
-    double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));
-
+    double SF_LT= pow(SF_TT*SF_LL,0.5); // scale factor for longitudinal-transverse susceptibility tensor
 
     // initialize susceptibility tensor matrix elements
     dat.ReXij = new double *****[NQ];
@@ -959,8 +950,6 @@ void chi_tensor(env &dat){
         #pragma omp parallel for collapse(4)
         for (int i=0; i<NTSR; i++){for (int j=0; j<NTSR; j++){for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
             for (int f=0; f<NFREQ; f++){
-                Eigen::Vector3d vecqgm = Q+dat.lat.G[m];
-                Eigen::Vector3d vecqgn = Q+dat.lat.G[n];
                 double tmp_real_1 = 0;
                 double tmp_imag_1 = 0;
                 double tmp_real_2 = 0;
@@ -995,27 +984,40 @@ void chi_tensor(env &dat){
                     tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                         * (*diracdelta)(dE-dat.freq[f]);    
                 }}}
+                // if (i == 0 && j == 0){// LL
+                //     tmp_imag_1 *= 2.0;
+                //     tmp_real_1 *= 2.0;
+                // }
                 if (f==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
-                    if (i==0 && j==0){
-                        tmp_imag_1 *= SCALEFACTOR_LL / (vecqgm.norm()*vecqgn.norm());
-                        tmp_real_1 *= SCALEFACTOR_LL / (vecqgm.norm()*vecqgn.norm());
-                    }else if (i==0){
-                        tmp_imag_1 *= SCALEFACTOR_LT / (vecqgm.norm()*dat.freq[f]);
-                        tmp_real_1 *= SCALEFACTOR_LT / (vecqgm.norm()*dat.freq[f]);
-                    }else if (j==0){
-                        tmp_imag_1 *= SCALEFACTOR_LT / (vecqgn.norm());
-                        tmp_real_1 *= SCALEFACTOR_LT / (vecqgn.norm());
-                    }else{
-                        tmp_imag_1 *= SCALEFACTOR_TT / (dat.freq[f]*dat.freq[f]);
-                        tmp_real_1 *= SCALEFACTOR_TT / (dat.freq[f]*dat.freq[f]);
+                    if (i%3!=0 && j%3!=0){
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
+                    } else if (i%3==0 && j%3==0 && (dat.lat.G[n]).norm()!=0 && (dat.lat.G[m]).norm()!=0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_real_1);
+                    } else if ( (i%3==0 || j%3==0) && i!=j && (dat.lat.G[n]).norm()!=0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_real_1);
+                    } else{
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
                     }
                 }
-
-                dat.ImXij[q][i][j][m][n][f] = (pi*tmp_imag_1+2.0*tmp_imag_2);
-                dat.ReXij[q][i][j][m][n][f] = (pi*tmp_real_1+2.0*tmp_real_2);
                 
                 // dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
                 // dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
