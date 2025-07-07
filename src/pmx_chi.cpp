@@ -910,8 +910,8 @@ void chi_tensor(env &dat){
                                     int p = active_G_indices[i_active];
                                     int loci_p = dat.lat.loci[m][p];
                                     
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                                    ointup[k][i][m][c][v] += 0.0 * conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                                    ointdown[k][i][m][c][v] += 0.0 * conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
                                 }
                             }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
