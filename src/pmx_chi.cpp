@@ -904,7 +904,7 @@ void chi_tensor(env &dat){
                             ointupdown[k][i][m][c][v] = 0;
                             ointdownup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
-                            }// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
+                            // T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
                             for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                 int p = active_G_indices[i_active];
