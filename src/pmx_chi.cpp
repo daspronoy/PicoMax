@@ -723,7 +723,7 @@ void chi_tensor(env &dat){
             diracdelta = &diracdelta_rect;
             break;
     }
-    NTSR = ;
+    NTSR = 3;
 
     // scalefactor
     double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
