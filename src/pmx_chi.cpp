@@ -984,54 +984,54 @@ void chi_tensor(env &dat){
                     tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                         * (*diracdelta)(dE-dat.freq[f]);    
                 }}}
-                // if (i == 0 && j == 0){// LL
-                //     tmp_imag_1 *= 2.0;
-                //     tmp_real_1 *= 2.0;
-                // }
-                // if (f==0){
-                //     tmp_imag_1 = 0;
-                //     tmp_real_1 = 0;
-                // }else{
-                //     if (i%3!=0 && j%3!=0){
-                //         tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                //         tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-
-                //         dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
-                //         dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
-                //     } else if (i%3==0 && i==j){
-                //         tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
-                //         tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
-
-                //         dat.ImXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_imag_1);
-                //         dat.ReXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_real_1);
-                //     } else if (i%3==0 || j%3==0){
-                //         tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
-                //         tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
-
-                //         dat.ImXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_imag_1);
-                //         dat.ReXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_real_1);
-                //     } else{
-                //         tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                //         tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-
-                //         dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
-                //         dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
-                //     }
-                // }
-                
-                // dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
-                // dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
-
+                if (i == 0 && j == 0){// LL
+                    tmp_imag_1 *= 2.0;
+                    tmp_real_1 *= 2.0;
+                }
                 if (f==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
-                    // TT
-                    tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                    tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                    if (i%3!=0 && j%3!=0){
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
+                    } else if (i%3==0 && i==j){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_LT * (tmp_real_1);
+                    } else if (i%3==0 || j%3==0){
+                        tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                        tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_LL* (tmp_real_1);
+                    } else{
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+
+                        dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
+                        dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
+                    }
                 }
-                dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
+                
+                // dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
+                // dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
+
+                // if (f==0){
+                //     tmp_imag_1 = 0;
+                //     tmp_real_1 = 0;
+                // }else{
+                //     // TT
+                //     tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                //     tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                // }
+                // dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
+                // dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
             }
         }}}}
         #pragma omp barrier
