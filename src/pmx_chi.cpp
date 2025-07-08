@@ -961,26 +961,28 @@ void chi_tensor(env &dat){
                 // sum over k,c,v
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){for (int v=0; v<NBAND_V[k]; v++){
                     // Determine actual spin indices instead of using modulo
+                    // sum over the spin states
                     int c_spin = c % 2;  // 0=up, 1=down
                     int v_spin = v % 2;
                     double dE = E_k[k][c]-E_kq[k][v];
+                    Oij = 0;
                     std::complex<double> Oij;
                     if (c_spin == v_spin) {
                         // Same spin: use appropriate arrays
                         if (c_spin == 0) {
                             // Both spin-up
-                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            Oij += ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                         } else {
                             // Both spin-down
-                            Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            Oij += ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                         }
                     } else {
                         if (c_spin == 0) {
                             // up-down spin
-                            Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            Oij += ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
                         } else {
                             // down-up spin
-                            Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            Oij += ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
                         }
                     }
                     tmp_imag_1 += dat.lat.KW[k] * Oij.real()
@@ -1009,8 +1011,8 @@ void chi_tensor(env &dat){
                     dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_real_1);
                 } else if (i%3!=0 && j%3!=0) {
-                    dat.ImXij[q][i][j][m][n][f] = 2.0 * SCALEFACTOR * (pi*tmp_imag_1);
-                    dat.ReXij[q][i][j][m][n][f] = 2.0 * SCALEFACTOR * (pi*tmp_real_1);
+                    dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
+                    dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
                 } else {
                     dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_real_1);
