@@ -1042,8 +1042,8 @@ void chi_tensor(env &dat){
 
 
                 if (i%3==0 && i==j){
-                    dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_imag_1);
-                    dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_real_1);
+                    dat.ImXij[q][i][j][m][n][f] = SF*SF_LL * (tmp_imag_1);
+                    dat.ReXij[q][i][j][m][n][f] = SF*SF_LL * (tmp_real_1);
                 } else if (i%3!=0 && j%3!=0) {
                     dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
