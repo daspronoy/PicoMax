@@ -959,10 +959,9 @@ void chi_tensor(env &dat){
                 double tmp_real_2 = 0;
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
-                for (int k=0; k<NKPT; k++){
-                    for (int c=0; c<NBAND_C[k]; c++){
-                        std::complex<double> Oij;
-                        Oij = 0;
+                std::complex<double> Oij;
+                for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){
+                        Oij = 0.0;
                         for (int v=0; v<NBAND_V[k]; v++){
                             // sum over the spin states
                             int c_spin = c % 2;  // 0=up, 1=down
@@ -977,11 +976,11 @@ void chi_tensor(env &dat){
                                     // Both spin-down
                                     Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
-                                tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                                            * (*diracdelta)(dE-dat.freq[f]);
-                                tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                    * (*diracdelta)(dE-dat.freq[f]);
                             }
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                        * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                                * (*diracdelta)(dE-dat.freq[f]);
                             
                         }
                         Oij = 0.0;
@@ -997,11 +996,11 @@ void chi_tensor(env &dat){
                                     // down-up spin
                                     Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
                                 }
-                                tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                                            * (*diracdelta)(dE-dat.freq[f]);
-                                tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                    * (*diracdelta)(dE-dat.freq[f]);
                             }
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                        * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                                * (*diracdelta)(dE-dat.freq[f]);    
                         }
                 }}
 
