@@ -1001,7 +1001,8 @@ void chi_tensor(env &dat){
                                                             * (*diracdelta)(dE-dat.freq[f]);
                                 tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                     * (*diracdelta)(dE-dat.freq[f]);
-                            }  
+                            }
+                        }
                 }}
 
                 if (f==0){
