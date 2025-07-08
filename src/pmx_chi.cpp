@@ -728,6 +728,9 @@ void chi_tensor(env &dat){
     // scalefactor
     double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
     double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
+    double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));
+
+
     double SF = 4*pi*dat.lat.bz_volume*pow(2*pi/(a*angstrom),3)*pow(e,2)/eV; // scale factor for susceptibility tensor ~10e-8
     double SF_TT = pow(hbar,4) * pow(1/(a*angstrom),2) / (pow(e_m,2) * pow(eV,2)); // scale factor for transverse-transverse susceptibility tensor
     double SF_LL = pow((a*angstrom),2); // scale factor for longitudinal-transverse susceptibility tensor
@@ -1041,9 +1044,12 @@ void chi_tensor(env &dat){
                 if (i%3==0 && i==j){
                     dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_real_1);
-                } else {
+                } else if (i%3!=0 && j%3!=0) {
                     dat.ImXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SF*SF_TT * (tmp_real_1);
+                } else {
+                    dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_imag_1);
+                    dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_real_1);
                 }
             }
         }}}}
