@@ -965,8 +965,8 @@ void chi_tensor(env &dat){
                     int c_spin = c % 2;  // 0=up, 1=down
                     int v_spin = v % 2;
                     double dE = E_k[k][c]-E_kq[k][v];
-                    Oij = 0;
                     std::complex<double> Oij;
+                    Oij = 0;
                     if (c_spin == v_spin) {
                         // Same spin: use appropriate arrays
                         if (c_spin == 0) {
