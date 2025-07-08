@@ -982,7 +982,7 @@ void chi_tensor(env &dat){
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                 * (*diracdelta)(dE-dat.freq[f]);
-                            Oij=0;
+                            Oij=0.0;
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
@@ -995,9 +995,10 @@ void chi_tensor(env &dat){
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                * (*diracdelta)(dE-dat.freq[f]);
-                        } 
-                }}}
+                                                * (*diracdelta)(dE-dat.freq[f]);  
+                            
+                        }                              
+                }}
 
                 if (f==0){
                     tmp_imag_1 = 0;
