@@ -726,7 +726,7 @@ void chi_tensor(env &dat){
     NTSR = 3;
 
     // scalefactor
-    double SCALEFACTOR = 32.0*dat.lat.bz_volume*pow(pi,3)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+    double SCALEFACTOR = 16.0*dat.lat.bz_volume*pow(pi,5)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
     double SCALEFACTOR_LL = 2.0*dat.lat.bz_volume*pow(e,2)/(pi*eV*a*angstrom);
     double SCALEFACTOR_LT = 8.0*dat.lat.bz_volume*pi*pow(hbar,2)*pow(e,2)/(pow(eV,2)*e_m*pow(a*angstrom,3));
 
@@ -965,7 +965,6 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            Oij = 0.0;
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
@@ -975,17 +974,6 @@ void chi_tensor(env &dat){
                                     Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
                             }
-                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                                        * (*diracdelta)(dE-dat.freq[f]);
-                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                * (*diracdelta)(dE-dat.freq[f]);
-                            
-                        }
-                        for (int v=0; v<NBAND_V[k]; v++){  // cross spin terms
-                            int c_spin = c % 2;  // 0=up, 1=down
-                            int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];
-                            Oij = 0.0;    
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
@@ -998,7 +986,7 @@ void chi_tensor(env &dat){
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                * (*diracdelta)(dE-dat.freq[f]);    
+                                                * (*diracdelta)(dE-dat.freq[f]);
                         }
                 }}
 
@@ -1022,8 +1010,8 @@ void chi_tensor(env &dat){
                     dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LL * (pi*tmp_real_1);
                 } else if (i%3!=0 && j%3!=0) {
-                    dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_imag_1);
-                    dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (pi*tmp_real_1);
+                    dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
+                    dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
                 } else {
                     dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_imag_1);
                     dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR_LT * (pi*tmp_real_1);
