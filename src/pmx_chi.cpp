@@ -982,12 +982,7 @@ void chi_tensor(env &dat){
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                 * (*diracdelta)(dE-dat.freq[f]);
-                        }
-                        Oij = 0;
-                        for (int v=0; v<NBAND_V[k]; v++){        
-                            int c_spin = c % 2;  // 0=up, 1=down
-                            int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];    
+                            Oij=0;
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
@@ -1000,7 +995,8 @@ void chi_tensor(env &dat){
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                * (*diracdelta)(dE-dat.freq[f]);    
+                                                * (*diracdelta)(dE-dat.freq[f]);
+                        } 
                 }}}
 
                 if (f==0){
