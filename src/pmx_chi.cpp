@@ -961,14 +961,12 @@ void chi_tensor(env &dat){
                 // sum over k,c,v
                 std::complex<double> Oij;
                 for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){
-                        Oij = 0.0;
-                        for (int v=0; v<NBAND_V[k]; v++){
-                            // sum over the spin states
+                        for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
+                            Oij = 0.0;
                             if (c_spin == v_spin) {
-                                // Same spin: use appropriate arrays
                                 if (c_spin == 0) {
                                     // Both spin-up
                                     Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
@@ -983,11 +981,11 @@ void chi_tensor(env &dat){
                                                 * (*diracdelta)(dE-dat.freq[f]);
                             
                         }
-                        Oij = 0.0;
-                        for (int v=0; v<NBAND_V[k]; v++){        
+                        for (int v=0; v<NBAND_V[k]; v++){  // cross spin terms
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];    
+                            double dE = E_k[k][c]-E_kq[k][v];
+                            Oij = 0.0;    
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
