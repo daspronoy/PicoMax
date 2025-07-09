@@ -203,46 +203,6 @@ int main (int argc, char **argv) {
         std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
     }
 
-    if (inp.existOption("-switch") 
-        && (inp.valueOption("-switch")=="epsLL")){
-        std::cout << "Susceptibility tensor matrix solver" << std::endl;
-        time_0 = std::chrono::system_clock::now();
-
-        // obtain reference energy level
-        pmx::setRefEnergy(dat);
-
-        // permittivity calculation
-        pmx::chi_LL(dat);
-
-        // export results
-        pmx::export_Xij(dat);
-        pmx::export_gpt(dat);
-
-        time_1 = std::chrono::system_clock::now();
-        elapsed_time = time_1-time_0;
-        std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-    }
-
-    if (inp.existOption("-switch") 
-        && (inp.valueOption("-switch")=="epsxyz")){
-        std::cout << "Susceptibility tensor matrix solver (xyz-basis)" << std::endl;
-        time_0 = std::chrono::system_clock::now();
-
-        // obtain reference energy level
-        pmx::setRefEnergy(dat);
-
-        // permittivity calculation
-        pmx::chi_xyz(dat);
-
-        // export results
-        pmx::export_Xij(dat);
-        pmx::export_gpt(dat);
-
-        time_1 = std::chrono::system_clock::now();
-        elapsed_time = time_1-time_0;
-        std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-    }
-
 
     return 0;
 }
