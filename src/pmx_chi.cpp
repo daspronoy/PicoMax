@@ -990,7 +990,7 @@ void chi_tensor(env &dat){
                         }
                 }}
 
-                if (f==0){
+                if (f==0 || dat.lat.G[m]==0 || dat.lat.G[n]==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
