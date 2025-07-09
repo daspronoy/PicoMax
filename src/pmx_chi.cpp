@@ -908,16 +908,16 @@ void chi_tensor(env &dat){
                             ointupdown[k][i][m][c][v] = 0;
                             ointdownup[k][i][m][c][v] = 0;
                             ointdown[k][i][m][c][v] = 0;
-                            if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
-                                // Loop over only active indices
-                                for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
-                                    int p = active_G_indices[i_active];
-                                    int loci_p = dat.lat.loci[m][p];
+                            // if (i % 3 == 0){// L, <k,c|e^{-i*(q+g_m)*r}|k+q,v>
+                            //     // Loop over only active indices
+                            //     for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
+                            //         int p = active_G_indices[i_active];
+                            //         int loci_p = dat.lat.loci[m][p];
                                     
-                                    ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
-                                    ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
-                                }
-                            }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
+                            //         ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p];
+                            //         ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1];
+                            //     }
+                            // }else{// T, u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r} \hat{j}_0 |k+q,v>
                                 // Loop over only active indices
                                 for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                     int p = active_G_indices[i_active];
@@ -934,7 +934,7 @@ void chi_tensor(env &dat){
                                     ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
                                     ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                                 }
-                            }
+                            //}
                         }//loop over v
                     }//loop over c
                 }//loop over i
