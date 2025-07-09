@@ -990,19 +990,23 @@ void chi_tensor(env &dat){
                         }
                 }}
 
-                if (f==0 || dat.lat.G[m].norm()==0 || dat.lat.G[n].norm()==0){
+                if (f==0){
                     tmp_imag_1 = 0;
                     tmp_real_1 = 0;
                 }else{
-                    if (i%3==0 && i==j){
+                    if (i%3==0 && i==j && dat.lat.G[m]!=0 && dat.lat.G[n]!=0){
                         tmp_imag_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
                         tmp_real_1 *= 1 / ((Q + dat.lat.G[m]).norm()*(Q + dat.lat.G[n]).norm());
                     } else if (i%3!=0 && j%3!=0){
                         tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
                         tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                    } else {
+                    } else if (dat.lat.G[n]==0) {
                         tmp_imag_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
                         tmp_real_1 *= 1 / ((Q + dat.lat.G[n]).norm()*dat.freq[f]);
+                    } else {
+                        tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                        
                     }
                 }
 
