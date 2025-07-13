@@ -1,8 +1,7 @@
 /*
     pmx.cpp | main file for picomax
 
-    Author: Jungho Mun
-    Date: June 6, 2024
+    Authors: Jungho Mun, Pronoy Das
 */
 
 

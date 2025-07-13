@@ -6,8 +6,7 @@
     * high-symmetry point
     * polarization unit vector
 
-    Author: Jungho Mun
-    Date: June 6, 2024
+    Authors: Jungho Mun, Pronoy Das
 */
 
 /*

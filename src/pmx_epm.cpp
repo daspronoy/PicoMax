@@ -1,8 +1,7 @@
 /*
     epm.cpp | includes functions related to calculation of electronic bands
 
-    Author: Jungho Mun + Pronoy Das
-    Date: June 6, 2024
+    Authors: Jungho Mun, Pronoy Das
 */
 
 /*
@@ -53,15 +52,6 @@ double get_soc_form_factor(const std::map<double, double>& so_map, double q_sq_n
 /*
     Returns the Hamiltonian matrix for the empirical pseudopotential method
     Now includes Spin-Orbit Coupling (SOC).
-
-    Reference:
-    [1] See the documentation Eq. XXX for explicit expressions 
-    [2] (Cohen and Bergstresser) "Band Structures and Pseudopotnetial Form Factors 
-        for Fourteen Semiconductors of the Diamond and Zinc-blende Structures", 
-        Phys. Rev. 141, 789 (1966)
-    [3] (Bergstresser and Cohen) "Electronic Structure and Optical Properties of 
-        Hexagonal CdSe, CdS, and ZnS", Phys. Rev. 164, 1069 (1967)
-    SOC part inspired by user-provided Mathematica code.
 */
 Eigen::MatrixXcd HamiltonianEPM (std::vector<Eigen::Vector3d> G_vectors, Eigen::Vector3d K_vec, std::vector<Eigen::Vector3d> atomic_pos, pmx::mater mat_params){
     int num_g_vectors = NPW; // NPW is a global variable for number of plane waves

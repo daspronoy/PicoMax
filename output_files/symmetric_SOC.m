@@ -105,22 +105,13 @@ for h = 0:4
     end
 end
 
-% Solve  [cos_sum  sin_sum] * [λ_S; λ_A]  ≈  λ(q)
-coeff_Ry = A\bRy;               % least‑squares solution
-lambda_S_Ry = coeff_Ry(1)
-lambda_A_Ry = coeff_Ry(2)
-
-%% ---------------- PRINT CONSTANTS --------------------------------------
-%  (still useful if you want the two–parameter model)
-lambda_S_eV = lambda_S_Ry / E2RY;
-lambda_A_eV = lambda_A_Ry / E2RY;
 
 %% ---------------- BUILD FULL λ_S(G) TABLE -----------------------------
 %  For high‑accuracy runs we feed the *exact* λ_S(q) into the Hamiltonian.
 %  Format requested :  G : λ_S  ,  G : λ_S  ,  ...               [units: eV]
 
 lambda_pairs = compose('%.7g:%.7g', results(2:end,1) , ...
-                                          E2RY*lambda_q_eV(results(2:end,1)));
+                                          E2RY*0.025*Vq(results(2:end,1)));
 fprintf('%s', strjoin(lambda_pairs,','));
 fprintf('\n');
 
