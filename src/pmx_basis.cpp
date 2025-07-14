@@ -405,44 +405,88 @@ void generate_kpt_fcc (lattice &lat){
 /*
     generate k-vectors in the full 1st BZ of hexagonal crystal structure
 */
-
 void symmetrize_kpoints_xy_hex(lattice &lat) {
-    std::vector<Eigen::Vector3d> K_sym;
-    std::vector<double> KW_sym;
-    
-    for (size_t i = 0; i < lat.K.size(); i++) {
+    // Use a map to handle unique k-points and avoid duplicates from symmetry operations.
+    // The key is a tuple representing the k-vector to handle floating point comparisons.
+    std::map<std::tuple<double, double, double>, double> unique_k_weights;
+    double tol = 1e-9;
+
+    // 1. Populate the map with original k-points and their weights.
+    for (size_t i = 0; i < lat.K.size(); ++i) {
         Eigen::Vector3d k = lat.K[i];
         double w = lat.KW[i];
-        
-        // For tellurium, the main symmetry breaking x↔y
-        std::vector<Eigen::Vector3d> symmetric_points;
-        std::vector<double> weights;
-        
-        // Original point
-        symmetric_points.push_back(k);
-        weights.push_back(w);
-        
-        // x↔y swapped point
-        Eigen::Vector3d k_xy_swap = {k(1), k(0), k(2)};
-        if (checkinbz_hex(k_xy_swap, lat.f) && (k - k_xy_swap).norm() > 1e-6) {
-            symmetric_points.push_back(k_xy_swap);
-            weights.push_back(w);
+        std::tuple<double, double, double> k_key = {
+            std::round(k.x() / tol) * tol,
+            std::round(k.y() / tol) * tol,
+            std::round(k.z() / tol) * tol
+        };
+        unique_k_weights[k_key] += w;
+    }
+
+    // 2. Create a new map for the symmetrized points.
+    std::map<std::tuple<double, double, double>, double> symmetrized_weights;
+    std::set<std::tuple<double, double, double>> processed_keys;
+
+    for (const auto& pair : unique_k_weights) {
+        const auto& k_key = pair.first;
+
+        // Skip if this k-point has already been processed as part of a symmetric pair.
+        if (processed_keys.count(k_key)) {
+            continue;
         }
-        
-        // Average the weights
-        double total_weight = 0;
-        for (double wt : weights) total_weight += wt;
-        double avg_weight = total_weight / symmetric_points.size();
-        
-        // Add all symmetric points with equal weights
-        for (const auto& sym_k : symmetric_points) {
-            K_sym.push_back(sym_k);
-            KW_sym.push_back(avg_weight);
+
+        Eigen::Vector3d k = {std::get<0>(k_key), std::get<1>(k_key), std::get<2>(k_key)};
+        double w = pair.second;
+
+        // Generate the x<->y swapped counterpart.
+        Eigen::Vector3d k_swap_vec = {k.y(), k.x(), k.z()};
+        std::tuple<double, double, double> k_swap_key = {
+            std::round(k_swap_vec.x() / tol) * tol,
+            std::round(k_swap_vec.y() / tol) * tol,
+            std::round(k_swap_vec.z() / tol) * tol
+        };
+
+        // Mark both as processed.
+        processed_keys.insert(k_key);
+        processed_keys.insert(k_swap_key);
+
+        if (k_key == k_swap_key) {
+            // The point is on the symmetry line (x=y), so it's its own pair.
+            symmetrized_weights[k_key] += w;
+        } else {
+            // The point has a distinct symmetric partner.
+            // Check if the partner also exists in the original grid.
+            double w_swap = 0.0;
+            if (unique_k_weights.count(k_swap_key)) {
+                w_swap = unique_k_weights[k_swap_key];
+            }
+            
+            // The combined weight is distributed equally between the two points.
+            double combined_weight = w + w_swap;
+            symmetrized_weights[k_key] += combined_weight / 2.0;
+            symmetrized_weights[k_swap_key] += combined_weight / 2.0;
+        }
+    }
+
+    // 3. Reconstruct the lattice's k-point and weight vectors from the symmetrized map.
+    lat.K.clear();
+    lat.KW.clear();
+    double total_weight = 0.0;
+
+    for (const auto& pair : symmetrized_weights) {
+        lat.K.emplace_back(std::get<0>(pair.first), std::get<1>(pair.first), std::get<2>(pair.first));
+        lat.KW.push_back(pair.second);
+        total_weight += pair.second;
+    }
+
+    // 4. Normalize the final weights.
+    if (total_weight > 0) {
+        for (double& w : lat.KW) {
+            w /= total_weight;
         }
     }
     
-    lat.K = K_sym;
-    lat.KW = KW_sym;
+    // 5. Update the global k-point count.
     NKPT = lat.K.size();
 }
 
