@@ -445,7 +445,6 @@ void symmetrize_kpoints_xy_hex(lattice &lat) {
     lat.KW = KW_sym;
     NKPT = lat.K.size();
 }
-}
 
 
 void generate_kpt_hex (lattice &lat){
