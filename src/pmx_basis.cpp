@@ -424,7 +424,7 @@ void symmetrize_kpoints_xy_hex(lattice &lat) {
         
         // x↔y swapped point
         Eigen::Vector3d k_xy_swap = {k(1), k(0), k(2)};
-        if (checkinbz_hex(k_xy_swap, lat.f) && (k - k_xy_swap).norm() > 1e-10) {
+        if (checkinbz_hex(k_xy_swap, lat.f) && (k - k_xy_swap).norm() > 1e-6) {
             symmetric_points.push_back(k_xy_swap);
             weights.push_back(w);
         }
