@@ -448,7 +448,51 @@ void generate_kpt_hex (lattice &lat){
     for (int k=0; k<NKPT; k++){
         lat.KW[k] = 1.0/NKPT;
     }
+
+    // ADD SYMMETRIZATION HERE
+    symmetrize_kpoints_xy_hex(lat);
 }
+
+void symmetrize_kpoints_xy_hex(lattice &lat) {
+    std::vector<Eigen::Vector3d> K_original = lat.K;
+    std::vector<double> KW_original = lat.KW;
+    
+    lat.K.clear();
+    lat.KW.clear();
+    
+    for (size_t i = 0; i < K_original.size(); i++) {
+        Eigen::Vector3d k = K_original[i];
+        double w = KW_original[i];
+        
+        // Add original k-point
+        lat.K.push_back(k);
+        lat.KW.push_back(w / 2.0);  // Half weight
+        
+        // Add x↔y swapped k-point for hexagonal lattice
+        Eigen::Vector3d k_swap = {k(1), k(0), k(2)};  // Swap x and y
+        
+        // Check if swapped point is still in BZ and not a duplicate
+        if (checkinbz_hex(k_swap, lat.f)) {
+            // Check if it's not too close to the original (avoid duplicates)
+            if ((k - k_swap).norm() > 1e-10) {
+                lat.K.push_back(k_swap);
+                lat.KW.push_back(w / 2.0);  // Half weight
+            } else {
+                // If points are identical, restore original weight
+                lat.KW.back() = w;
+            }
+        } else {
+            // If swapped point is outside BZ, restore original weight
+            lat.KW.back() = w;
+        }
+    }
+    
+    NKPT = lat.K.size();
+}
+
+
+
+
 
 /*
     generate k-vectors in the full 1st BZ of hexagonal crystal structure
