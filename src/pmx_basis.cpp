@@ -407,40 +407,44 @@ void generate_kpt_fcc (lattice &lat){
 */
 
 void symmetrize_kpoints_xy_hex(lattice &lat) {
-    std::vector<Eigen::Vector3d> K_original = lat.K;
-    std::vector<double> KW_original = lat.KW;
+    std::vector<Eigen::Vector3d> K_sym;
+    std::vector<double> KW_sym;
     
-    lat.K.clear();
-    lat.KW.clear();
-    
-    for (size_t i = 0; i < K_original.size(); i++) {
-        Eigen::Vector3d k = K_original[i];
-        double w = KW_original[i];
+    for (size_t i = 0; i < lat.K.size(); i++) {
+        Eigen::Vector3d k = lat.K[i];
+        double w = lat.KW[i];
         
-        // Add original k-point
-        lat.K.push_back(k);
-        lat.KW.push_back(w / 2.0);  // Half weight
+        // For tellurium, the main symmetry breaking x↔y
+        std::vector<Eigen::Vector3d> symmetric_points;
+        std::vector<double> weights;
         
-        // Add x↔y swapped k-point for hexagonal lattice
-        Eigen::Vector3d k_swap = {k(1), k(0), k(2)};  // Swap x and y
+        // Original point
+        symmetric_points.push_back(k);
+        weights.push_back(w);
         
-        // Check if swapped point is still in BZ and not a duplicate
-        if (checkinbz_hex(k_swap, lat.f)) {
-            // Check if it's not too close to the original (avoid duplicates)
-            if ((k - k_swap).norm() > 1e-10) {
-                lat.K.push_back(k_swap);
-                lat.KW.push_back(w / 2.0);  // Half weight
-            } else {
-                // If points are identical, restore original weight
-                lat.KW.back() = w;
-            }
-        } else {
-            // If swapped point is outside BZ, restore original weight
-            lat.KW.back() = w;
+        // x↔y swapped point
+        Eigen::Vector3d k_xy_swap = {k(1), k(0), k(2)};
+        if (checkinbz_hex(k_xy_swap, lat.f) && (k - k_xy_swap).norm() > 1e-10) {
+            symmetric_points.push_back(k_xy_swap);
+            weights.push_back(w);
+        }
+        
+        // Average the weights
+        double total_weight = 0;
+        for (double wt : weights) total_weight += wt;
+        double avg_weight = total_weight / symmetric_points.size();
+        
+        // Add all symmetric points with equal weights
+        for (const auto& sym_k : symmetric_points) {
+            K_sym.push_back(sym_k);
+            KW_sym.push_back(avg_weight);
         }
     }
     
+    lat.K = K_sym;
+    lat.KW = KW_sym;
     NKPT = lat.K.size();
+}
 }
 
 
