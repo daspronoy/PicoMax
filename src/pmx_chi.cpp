@@ -555,10 +555,10 @@ void chi_tensor(env &dat){
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
-                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                                    Oij = 0.5 * (ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v])+ointup[k][j][n][c][v] * conj(ointup[k][i][m][c][v]));
                                 } else {
                                     // Both spin-down
-                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                                    Oij = 0.5 * (ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])+ointdown[k][j][n][c][v] * conj(ointdown[k][i][m][c][v]));
                                 }
                             }
                             if (c_spin != v_spin) {
