@@ -840,6 +840,7 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
 
     return uvec;
 }
+}
 
 /*
     returns the Cartesian polarization unit vectors (x,y,z)
