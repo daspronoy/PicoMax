@@ -545,35 +545,35 @@ void chi_tensor(env &dat){
                 double tmp_real_2 = 0;
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
+                std::complex<double> Oij;
                 for (int k=0; k<NKPT; k++){
                     for (int c=0; c<NBAND_C[k]; c++){
-                        for (int v=0; v<NBAND_V[k]; v++){
+                        for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
+                            int c_spin = c % 2;  // 0=up, 1=down
+                            int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            
-                            // Initialize Oij for this transition and accumulate ALL spin contributions
-                            std::complex<double> Oij = {0.0, 0.0};
-                            
-                            // 1. Spin-conserving contributions (up->up and down->down)
-                            std::complex<double> O_up = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                            std::complex<double> O_down = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                            
-                            // Apply m,n symmetrization for spin-conserving terms
-                            if (m != n) {
-                                O_up += ointup[k][i][n][c][v] * conj(ointup[k][j][m][c][v]);
-                                O_down += ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]);
-                                O_up *= 0.5;
-                                O_down *= 0.5;
+                            if (c_spin == v_spin) {
+                                if (c_spin == 0) {
+                                    // Both spin-up
+                                    Oij = 0.5 * (ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v])+ointup[k][i][n][c][v] * conj(ointup[k][j][m][c][v]));
+                                } else {
+                                    // Both spin-down
+                                    Oij = 0.5 * (ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])+ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]));
+                                }
                             }
-                            Oij += O_up + O_down;
-                            
-                            // 2. Spin-flipping contributions (up->down and down->up)
-                            std::complex<double> O_updown = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                            std::complex<double> O_downup = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                            Oij += O_updown + O_downup;
-                            
-                            // 3. Accumulate the contribution for this transition
-                            tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
-                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
+                            if (c_spin != v_spin) {
+                                if (c_spin == 0) {
+                                    // up-down spin
+                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                                } else {
+                                    // down-up spin
+                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                                }
+                            }
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
+                                                        * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
+                                                * (*diracdelta)(dE-dat.freq[f]);
                         }
                     }   
                 }

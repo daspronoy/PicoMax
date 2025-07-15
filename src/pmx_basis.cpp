@@ -817,8 +817,8 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
     returns the longitudinal and transverse polarization unit vectors
 */
 std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
-    std::vector<Eigen::Vector3cd> uvec;
-    uvec.reserve(3);
+    std::vector<Eigen::Vector3cd> uvec(3);
+    // uvec.reserve(3);
 
     // longitudinal polarization unit vector
     uvec[0] = uvec_L(v);
