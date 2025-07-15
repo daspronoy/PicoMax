@@ -837,8 +837,8 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     //     uvec[1] = tvec;
     //     uvec[2] = pvec;
     // }
-    uvec[1] = tvec;
-    uvec[2] = pvec;
+    uvec[1] = (tvec+im*pvec)/sqrt(2);
+    uvec[2] = (tvec-im*pvec)/sqrt(2);
     return uvec;
 }
 }
