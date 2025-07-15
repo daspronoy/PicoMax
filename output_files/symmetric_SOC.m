@@ -75,7 +75,7 @@ p = [ 17.95 ,  5.136 , -33.18 , -25.76 , -8.536 , ...
 Vq = @(q) fourier_V(p,q,w,vshift,orderN);        % value in eV
 dVdq = @(q) d_fourier_V(p,q,w,vshift,orderN);    % derivative in eV
 
-lambda_q_eV = @(q) 0.025*(1./q).*dVdq(q);          % SOC prefactor (eV)
+lambda_q_eV = @(q) 0.025*q.*dVdq(q);          % SOC prefactor (eV)
 E2RY        = 1/13.605693009;                      % eV → Ry conversion
 
 %% ---------------- BUILD LINEAR SYSTEM  A·λ = b  -----------------------
@@ -111,7 +111,7 @@ end
 %  Format requested :  G : λ_S  ,  G : λ_S  ,  ...               [units: eV]
 
 lambda_pairs = compose('%.7g:%.7g', results(2:end,1) , ...
-                                          E2RY*0.025*Vq(results(2:end,1)));
+                                          lambda_q_eV(results(2:end,1)));
 fprintf('%s', strjoin(lambda_pairs,','));
 fprintf('\n');
 
