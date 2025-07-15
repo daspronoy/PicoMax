@@ -801,14 +801,14 @@ inline Eigen::Vector3d uvec_L (Eigen::Vector3d v){
 */
 
 inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
-    Eigen::Vector3d p;
-    if (v(1)!=0){
-        p << -v(1), v(0), 0;
-    }else if (v(1)==0 && v(2)!=0){
-        p << v(2), 0, -v(0);
-    }else if (v(1)==0 && v(2)==0){
-        p << 0, 1, 0;
-    }
+    Eigen::Vector3d p={1,1/sqrt(3),0};
+    // if (v(1)!=0){
+    //     p << -v(1), v(0), 0;
+    // }else if (v(1)==0 && v(2)!=0){
+    //     p << v(2), 0, -v(0);
+    // }else if (v(1)==0 && v(2)==0){
+    //     p << 0, 1, 0;
+    // }
     p = p/p.norm();
 
     return p;

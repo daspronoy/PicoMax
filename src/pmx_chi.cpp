@@ -517,7 +517,7 @@ void chi_tensor(env &dat){
                                 int p = active_G_indices[i_active];
                                 int loci_p = dat.lat.loci[m][p];
                                 Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
-                                std::complex<double> soc_contribution = SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
+                                std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
                                 ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
