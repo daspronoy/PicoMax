@@ -799,19 +799,79 @@ inline Eigen::Vector3d uvec_L (Eigen::Vector3d v){
     returns the transverse polarization unit vector tangential to the momentum
     analogous to the typical polarization unit vector in free space (of tangential fields)
 */
+
 inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
-    Eigen::Vector3d p;
-    if (v(1)!=0){
-        p << -v(1), v(0), 0;
-    }else if (v(1)==0 && v(2)!=0){
-        p << v(2), 0, -v(0);
-    }else if (v(1)==0 && v(2)==0){
-        p << 0, 1, 0;
+    // For Tellurium (hexagonal), define a set of fixed, high-symmetry candidate
+    // vectors for the transverse direction. This avoids arbitrary basis construction.
+    // These vectors correspond to the primary crystal axes/directions.
+    // Note: The coordinates for K and M are based on a common convention for hexagonal lattices.
+    const Eigen::Vector3d dir_M(0.5, -0.5 / sqrt(3.0), 0.0); // Direction towards M point
+    const Eigen::Vector3d dir_K(2.0 / 3.0, 0.0, 0.0);         // Direction towards K point
+    const Eigen::Vector3d dir_A(0.0, 0.0, 1.0);               // Direction towards A point (c-axis)
+
+    // Normalize the input vector to get the longitudinal direction.
+    Eigen::Vector3d v_norm = v;
+    if (v.norm() > 1e-9) {
+        v_norm.normalize();
+    } else {
+        // If v is the zero vector (Gamma point), default longitudinal to a high-symmetry direction.
+        // We choose K here, but any choice is arbitrary; the key is consistency.
+        v_norm = dir_K.normalized();
     }
-    p = p/p.norm();
+
+    // Find which candidate vector is most perpendicular to v.
+    // The one with the smallest absolute dot product is the most transverse.
+    double dot_M = std::abs(v_norm.dot(dir_M.normalized()));
+    double dot_K = std::abs(v_norm.dot(dir_K.normalized()));
+    double dot_A = std::abs(v_norm.dot(dir_A.normalized()));
+
+    Eigen::Vector3d p; // This will be the chosen transverse vector.
+
+    // Select the high-symmetry direction that is most orthogonal to v
+    if (dot_M <= dot_K && dot_M <= dot_A) {
+        p = dir_M;
+    } else if (dot_K <= dot_M && dot_K <= dot_A) {
+        p = dir_K;
+    } else {
+        p = dir_A;
+    }
+
+    // Project out the longitudinal component from the chosen direction
+    // to make it perfectly orthogonal to v.
+    p = p - v_norm.dot(p) * v_norm;
+
+    // Normalize the final transverse vector.
+    // This should not fail unless v is perfectly parallel to all three candidate
+    // directions, which is geometrically impossible.
+    if (p.norm() < 1e-9) {
+        // Fallback for the highly unlikely case that p is a zero vector.
+        // This can happen if v is perfectly aligned with one of the candidate vectors.
+        // In this case, we can just pick another candidate.
+        if (dot_M > 0.999) { // v is along M
+            p = dir_K - v_norm.dot(dir_K) * v_norm;
+        } else { // v is along K or A
+            p = dir_M - v_norm.dot(dir_M) * v_norm;
+        }
+    }
+    
+    p.normalize();
 
     return p;
 }
+
+// inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
+//     Eigen::Vector3d p;
+//     if (v(1)!=0){
+//         p << -v(1), v(0), 0;
+//     }else if (v(1)==0 && v(2)!=0){
+//         p << v(2), 0, -v(0);
+//     }else if (v(1)==0 && v(2)==0){
+//         p << 0, 1, 0;
+//     }
+//     p = p/p.norm();
+
+//     return p;
+// }
 
 /*
     returns the longitudinal and transverse polarization unit vectors
