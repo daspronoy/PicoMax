@@ -836,23 +836,23 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
         p = dir_A;
     }
 
-    // Project out the longitudinal component from the chosen direction
-    // to make it perfectly orthogonal to v.
-    p = p - v_norm.dot(p) * v_norm;
+    // // Project out the longitudinal component from the chosen direction
+    // // to make it perfectly orthogonal to v.
+    // p = p - v_norm.dot(p) * v_norm;
 
-    // Normalize the final transverse vector.
-    // This should not fail unless v is perfectly parallel to all three candidate
-    // directions, which is geometrically impossible.
-    if (p.norm() < 1e-9) {
-        // Fallback for the highly unlikely case that p is a zero vector.
-        // This can happen if v is perfectly aligned with one of the candidate vectors.
-        // In this case, we can just pick another candidate.
-        if (dot_M > 0.999) { // v is along M
-            p = dir_K - v_norm.dot(dir_K) * v_norm;
-        } else { // v is along K or A
-            p = dir_M - v_norm.dot(dir_M) * v_norm;
-        }
-    }
+    // // Normalize the final transverse vector.
+    // // This should not fail unless v is perfectly parallel to all three candidate
+    // // directions, which is geometrically impossible.
+    // if (p.norm() < 1e-9) {
+    //     // Fallback for the highly unlikely case that p is a zero vector.
+    //     // This can happen if v is perfectly aligned with one of the candidate vectors.
+    //     // In this case, we can just pick another candidate.
+    //     if (dot_M > 0.999) { // v is along M
+    //         p = dir_K - v_norm.dot(dir_K) * v_norm;
+    //     } else { // v is along K or A
+    //         p = dir_M - v_norm.dot(dir_M) * v_norm;
+    //     }
+    // }
     
     p.normalize();
 
