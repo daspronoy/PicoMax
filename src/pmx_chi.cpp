@@ -586,12 +586,6 @@ void chi_tensor(env &dat){
                     tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
                 }
 
-                if (i==j){
-                    tmp_real_1=0;
-                } else {
-                    tmp_imag_1=0;
-                }
-
                 dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
                 dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
             }
