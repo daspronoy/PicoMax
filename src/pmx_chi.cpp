@@ -522,8 +522,8 @@ void chi_tensor(env &dat){
                                 // Apply contributions
                                 ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
-                                // ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
-                                // ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                             }
                         }//loop over v
                     }//loop over c
@@ -546,7 +546,8 @@ void chi_tensor(env &dat){
                 double tmp_imag_2 = 0;
                 // sum over k,c,v
                 std::complex<double> Oij;
-                for (int k=0; k<NKPT; k++){for (int c=0; c<NBAND_C[k]; c++){
+                for (int k=0; k<NKPT; k++){
+                    for (int c=0; c<NBAND_C[k]; c++){
                         for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
@@ -574,7 +575,8 @@ void chi_tensor(env &dat){
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                 * (*diracdelta)(dE-dat.freq[f]);
                         }
-                }}
+                    }   
+                }
 
                 if (f==0){
                     tmp_imag_1 = 0;
