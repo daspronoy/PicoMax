@@ -809,7 +809,14 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
     }else if (v(1)==0 && v(2)==0){
         p << 0, 1, 0;
     }
-    p = p/p.norm();
+    p.normalize();
+    double theta=pi/8.0;
+    // If a non-zero angle is provided, rotate the transverse vector 'p'
+    // around the z-axis (0,0,1).
+    if (std::abs(theta) > 1e-9) {
+        Eigen::AngleAxisd rotation(theta, Eigen::Vector3d::UnitZ());
+        p = rotation * p;
+    }
 
     return p;
 }
