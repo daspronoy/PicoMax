@@ -828,7 +828,7 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     tvec = uvec_T(v);
     pvec = (uvec[0].real()).cross(tvec);
 
-    bool COMPLEX = true;
+    // bool COMPLEX = true;
 
     // if (COMPLEX){
     //     uvec[1] = (tvec+im*pvec)/sqrt(2);
@@ -837,7 +837,8 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     //     uvec[1] = tvec;
     //     uvec[2] = pvec;
     // }
-
+    uvec[1] = tvec;
+    uvec[2] = pvec;
     return uvec;
 }
 }
