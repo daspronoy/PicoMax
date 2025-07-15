@@ -830,13 +830,13 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
 
     bool COMPLEX = true;
 
-    if (COMPLEX){
-        uvec[1] = (tvec+im*pvec)/sqrt(2);
-        uvec[2] = (tvec-im*pvec)/sqrt(2);
-    }else{
-        uvec[1] = tvec;
-        uvec[2] = pvec;
-    }
+    // if (COMPLEX){
+    //     uvec[1] = (tvec+im*pvec)/sqrt(2);
+    //     uvec[2] = (tvec-im*pvec)/sqrt(2);
+    // }else{
+    //     uvec[1] = tvec;
+    //     uvec[2] = pvec;
+    // }
 
     return uvec;
 }
