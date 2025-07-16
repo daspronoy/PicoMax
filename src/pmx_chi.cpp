@@ -561,7 +561,6 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            if (i==j){
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
@@ -571,20 +570,20 @@ void chi_tensor(env &dat){
                                     Oij = 0.5 * (ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])+ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]));
                                 }
                             }
-                            if (c_spin != v_spin) {
-                                if (c_spin == 0) {
-                                    // up-down spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                                } else {
-                                    // down-up spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                                }
-                            }
+                            // if (c_spin != v_spin) {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                 * (*diracdelta)(dE-dat.freq[f]);
-                        }}
+                        }
                     }   
                 }
 
