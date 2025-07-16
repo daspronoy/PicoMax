@@ -518,9 +518,9 @@ void chi_tensor(env &dat){
                                 int loci_p = dat.lat.loci[m][p];
                                 Eigen::Vector3cd v_orb;
                                 if (i==0){
-                                    v_orb = (dat.lat.G[p] + K + 1/2).cast<std::complex<double>>();
+                                    v_orb = (dat.lat.G[p] + K + 1/2);
                                 } else {
-                                    v_orb = (dat.lat.G[p] + K).cast<std::complex<double>>();
+                                    v_orb = (dat.lat.G[p] + K);
                                 }
                                 // Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
