@@ -820,13 +820,33 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     std::vector<Eigen::Vector3cd> uvec(3);
     // uvec.reserve(3);
 
-    // longitudinal polarization unit vector
-    uvec[0] = uvec_L(v);
+    // 1. Define the longitudinal vector (lvec)
+    Eigen::Vector3d lvec = uvec_L(v).real();
+    uvec[0] = lvec.cast<std::complex<double>>();
     
-    // transverse polarization unit vectors
-    Eigen::Vector3d tvec, pvec;
-    tvec = uvec_T(v);
-    pvec = uvec[0].cross(tvec);
+    // 2. Define the first transverse vector (tvec)
+    Eigen::Vector3d tvec = uvec_T(v);
+
+    // 3. Enforce orthogonality using Gram-Schmidt process
+    // This removes any small component of tvec that might be parallel to lvec due to floating-point errors.
+    tvec = (tvec - lvec.dot(tvec) * lvec).normalized();
+
+    // 4. Define the second transverse vector (pvec) via cross product
+    // This is guaranteed to be orthogonal to both lvec and the corrected tvec.
+    Eigen::Vector3d pvec = lvec.cross(tvec);
+    // Normalization is good practice, though cross product of unit vectors is a unit vector.
+    pvec.normalize();
+
+
+    // // longitudinal polarization unit vector
+    // uvec[0] = uvec_L(v);
+    
+    // // transverse polarization unit vectors
+    // Eigen::Vector3d tvec, pvec;
+    // tvec = uvec_T(v);
+    // pvec = (uvec[0].real()).cross(tvec);
+
+    // pvec.normalize();
 
     // bool COMPLEX = true;
 
