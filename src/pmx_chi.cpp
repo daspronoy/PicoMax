@@ -531,8 +531,8 @@ void chi_tensor(env &dat){
                                 // Apply contributions
                                 ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
-                                // ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
-                                // ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                             }
                         }//loop over v
                     }//loop over c
@@ -573,10 +573,10 @@ void chi_tensor(env &dat){
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                                    Oij = 0;
                                 } else {
                                     // down-up spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                                    Oij = 0;
                                 }
                             }
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
