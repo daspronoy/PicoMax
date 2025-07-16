@@ -524,11 +524,6 @@ void chi_tensor(env &dat){
                                 } else {
                                     v_orb = (dat.lat.G[p] + K);
                                     orb_contribution = uvec_m[i].dot(v_orb);
-                                    // if (i==2){
-                                    //     if (uvec_m[i-1].dot(uvec_m[i])>1e-6){
-                                    //         orb_contribution = uvec_m[i].dot(v_orb);
-                                    //     }
-                                    // }
                                 }
                                 // Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
@@ -566,6 +561,7 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
+                            if (i==j){
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
@@ -588,7 +584,7 @@ void chi_tensor(env &dat){
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
                                                 * (*diracdelta)(dE-dat.freq[f]);
-                        }
+                        }}
                     }   
                 }
 
