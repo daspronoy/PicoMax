@@ -573,11 +573,13 @@ void chi_tensor(env &dat){
                             if (c_spin != v_spin) {
                                 if (c_spin == 0) {
                                     // up-down spin
-                                    Oij = 0;
+                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
                                 } else {
                                     // down-up spin
-                                    Oij = 0;
+                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
                                 }
+                            } else {
+                                Oij=0;
                             }
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
