@@ -569,7 +569,7 @@ void chi_tensor(env &dat){
                                     // Both spin-down
                                     Oij = 0.5 * (ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])+ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]));
                                 }
-                            } else if (c_spin != v_spin) {
+                            } else {
                                 if (c_spin == 0) {
                                     // up-down spin
                                     Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
@@ -577,8 +577,6 @@ void chi_tensor(env &dat){
                                     // down-up spin
                                     Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
                                 }
-                            } else {
-                                Oij = 0;
                             }
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
