@@ -826,7 +826,7 @@ std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     // transverse polarization unit vectors
     Eigen::Vector3d tvec, pvec;
     tvec = uvec_T(v);
-    pvec = (uvec[0].real()).cross(tvec);
+    pvec = uvec[0].cross(tvec);
 
     // bool COMPLEX = true;
 
