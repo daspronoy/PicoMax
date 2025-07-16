@@ -516,15 +516,18 @@ void chi_tensor(env &dat){
                             for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                                 int p = active_G_indices[i_active];
                                 int loci_p = dat.lat.loci[m][p];
+                                std::complex<double> orb_contribution;
                                 Eigen::Vector3cd v_orb;
                                 if (i==0){
-                                    v_orb = (dat.lat.G[p] + K + 1/2);
+                                    v_orb = (dat.lat.G[p] + K);
+                                    orb_contribution = uvec_m[i].dot(v_orb) + 0.5;
                                 } else {
                                     v_orb = (dat.lat.G[p] + K);
+                                    orb_contribution = uvec_m[i].dot(v_orb);
                                 }
                                 // Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
-                                std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
+                                // std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
                                 ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
