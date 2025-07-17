@@ -529,10 +529,26 @@ void chi_tensor(env &dat){
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
                                 // std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
-                                ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
-                                ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
-                                ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
-                                ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                int c_spin = c % 2;  // 0=up, 1=down
+                                int v_spin = v % 2;
+                                double dE = E_k[k][c]-E_kq[k][v];
+                                if (c_spin == v_spin) {
+                                    if (c_spin == 0) {
+                                        // Both spin-up
+                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
+                                    } else {
+                                        // Both spin-down
+                                        ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                    }
+                                } else {
+                                    if (c_spin == 0) {
+                                        // up-down spin
+                                        ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                    } else {
+                                        // down-up spin
+                                        ointdownup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                    }
+                                }
                             }
                         }//loop over v
                     }//loop over c
@@ -564,10 +580,10 @@ void chi_tensor(env &dat){
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
-                                    Oij = 0.5 * (ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v])+ointup[k][i][n][c][v] * conj(ointup[k][j][m][c][v]));
+                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                                 } else {
                                     // Both spin-down
-                                    Oij = 0.5 * (ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])+ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]));
+                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
                             } else {
                                 if (c_spin == 0) {
