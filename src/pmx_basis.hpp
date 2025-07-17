@@ -59,6 +59,7 @@ namespace pmx {
     inline Eigen::Vector3d uvec_L (Eigen::Vector3d v);
     inline Eigen::Vector3d uvec_T (Eigen::Vector3d v);
     std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v);
+    std::vector<Eigen::Vector3cd> ovec_LT (Eigen::Vector3cd v1, Eigen::Vector3cd v2);
 
     // Eigen::Vector3d normvec(Eigen::Vector3d v);
     // Eigen::Vector3d perpvec(Eigen::Vector3d v);
