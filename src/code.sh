@@ -27,4 +27,4 @@ vg=0.565147,1.33333,1.89848,2.26059,3.59392,4,4.56515,5.08632,5.33333,5.89848,6.
 /home/sauron/Github/PicoMax/src/picomax -switch epsij -crystal te -a 4.4572 -vg ${vg} \
 -encut 100 -gsym 1 -neps 1 -nband 80 -nvalence 18 -f 1.330207  -u 0.263170 \
 -nfreq 1001 -dfreq 0.02000 -kk 1 -epsilon 0.01 -delta 0 -kpoint 1 -kpointorder 5 \
--wdir ${wdir} -outputfile chi -qvec 0,0,1e-6 -refpoint 0.666666667,0,0.37588 -ua_so ${us_so} -us_so ${us_so}
+-wdir ${wdir} -outputfile chi -qvec 0,0,1e-5 -refpoint 0.666666667,0,0.37588 -ua_so ${us_so} -us_so ${us_so}
