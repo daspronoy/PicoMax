@@ -815,8 +815,7 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
 
 
 
-std::pair<Eigen::Vector3cd, Eigen::Vector3cd> ovec_LT(
-    Eigen::Vector3cd v1, Eigen::Vector3cd v2) 
+std::vector<Eigen::Vector3cd> ovec_LT(Eigen::Vector3cd v1, Eigen::Vector3cd v2) 
 {
     std::vector<Eigen::Vector3cd> ovec(3);
 
@@ -867,8 +866,8 @@ std::pair<Eigen::Vector3cd, Eigen::Vector3cd> ovec_LT(
     // Normalize out2 to make it a unit vector.
     out2.normalize();
 
-    ovec[1] = (out1+im*out2)/sqrt(2);
-    ovec[2] = (out1-im*out2)/sqrt(2);
+    ovec[1] = (out1 + im*out2)/sqrt(2);
+    ovec[2] = (out1 - im*out2)/sqrt(2);
     return ovec;
 }
 
