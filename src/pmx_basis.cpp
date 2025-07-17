@@ -813,9 +813,69 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
     return p;
 }
 
+
+
+std::pair<Eigen::Vector3cd, Eigen::Vector3cd> ovec_LT(
+    Eigen::Vector3cd v1, Eigen::Vector3cd v2) 
+{
+    std::vector<Eigen::Vector3cd> ovec(3);
+
+    Eigen::Vector3d lvec = uvec_L(v1).real();
+    ovec[0] = lvec.cast<std::complex<double>>();
+
+    // Handle the case where v2 is a zero vector to avoid division by zero.
+    if (v2.squaredNorm() < 1e-12) {
+        // If v2 is zero, we can't define a plane. Return two arbitrary
+        // orthogonal unit vectors.
+        Eigen::Vector3cd out1(1.0, 0.0, 0.0);
+        Eigen::Vector3cd out2(0.0, 1.0, 0.0);
+        return {out1, out2};
+    }
+
+    // 1. Calculate the first output vector (out1).
+    // This is done by taking the component of v1 that is perpendicular to v2,
+    // which is found by subtracting the projection of v1 onto v2 from v1 itself.
+    // This is a step of the Gram-Schmidt process.
+    Eigen::Vector3cd out1 = v1 - (v1.dot(v2) / v2.squaredNorm()) * v2;
+
+    // Handle the case where v1 is parallel to v2, which makes out1 a zero vector.
+    if (out1.squaredNorm() < 1e-12) {
+        // v1 and v2 are collinear. We need to find an arbitrary vector that is
+        // perpendicular to v2. We can do this by taking the cross product of v2
+        // with a non-parallel standard basis vector.
+        Eigen::Vector3cd basis_x(1.0, 0.0, 0.0);
+        Eigen::Vector3cd basis_y(0.0, 1.0, 0.0);
+        
+        // Check if v2 is parallel to the x-axis.
+        if ((v2.cross(basis_x)).squaredNorm() < 1e-12) {
+            // If it is, use the y-axis to generate the perpendicular vector.
+            out1 = v2.cross(basis_y);
+        } else {
+            // Otherwise, use the x-axis.
+            out1 = v2.cross(basis_x);
+        }
+    }
+    
+    // Normalize out1 to make it a unit vector.
+    out1.normalize();
+
+    // 2. Calculate the second output vector (out2).
+    // This vector must be normal to both out1 and v2. The cross product
+    // of v2 and out1 gives exactly this vector.
+    Eigen::Vector3cd out2 = v2.cross(out1);
+    
+    // Normalize out2 to make it a unit vector.
+    out2.normalize();
+
+    ovec[1] = (out1+im*out2)/sqrt(2);
+    ovec[2] = (out1-im*out2)/sqrt(2);
+    return ovec;
+}
+
 /*
     returns the longitudinal and transverse polarization unit vectors
 */
+
 std::vector<Eigen::Vector3cd> uvec_LT (Eigen::Vector3d v){
     std::vector<Eigen::Vector3cd> uvec(3);
     // uvec.reserve(3);

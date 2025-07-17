@@ -517,21 +517,17 @@ void chi_tensor(env &dat){
                                 int p = active_G_indices[i_active];
                                 int loci_p = dat.lat.loci[m][p];
                                 std::complex<double> orb_contribution;
-                                Eigen::Vector3cd v_orb;
-                                if (i==0){
-                                    v_orb = (dat.lat.G[p] + K);
-                                    orb_contribution = uvec_m[i].dot(v_orb) + 0.5;
+                                Eigen::Vector3cd v_orb = (dat.lat.G[p] + K).cast<std::complex<double>>();
+                                std::vector<Eigen::Vector3cd> ovec_m = ovec_LT(Q+dat.lat.G[m],v_orb);
+                                if (i==0){;
+                                    orb_contribution = ovec_m[i].dot(v_orb) + 0.5;
                                 } else {
-                                    v_orb = (dat.lat.G[p] + K);
-                                    orb_contribution = uvec_m[i].dot(v_orb);
+                                    orb_contribution = ovec_m[i].dot(v_orb);
                                 }
                                 // Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
                                 // std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
-                                int c_spin = c % 2;  // 0=up, 1=down
-                                int v_spin = v % 2;
-                                double sq_dE = sqrt(E_k[k][c]-E_kq[k][v]);
                                 if (c_spin == v_spin) {
                                     if (c_spin == 0) {
                                         // Both spin-up
