@@ -518,11 +518,14 @@ void chi_tensor(env &dat){
                                 int loci_p = dat.lat.loci[m][p];
                                 std::complex<double> orb_contribution;
                                 Eigen::Vector3d v_orb = dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2;
+                                Eigen::Vector3cd uvec0 = (Q + dat.lat.G[m]).normalized();
+                                Eigen::Vector3cd uvec1;
+                                Eigen::Vector3cd uvec2;
 
                                 uvec1 = cos(pi / 3.0) * uvec_m[1] + sin(pi / 3.0) * uvec_m[2]; // Rotate uvec1 by 120 degrees
-                                uvec2 = uvec_m[0].cross(uvec1).normalized(); // Recompute u
+                                uvec2 = uvec0.cross(uvec1).normalized(); // Recompute u
                                 if (i==0){
-                                    orb_contribution = uvec_m[0].dot(v_orb);
+                                    orb_contribution = uvec0.dot(v_orb);
                                 } else if (i==1) { 
                                     orb_contribution = uvec1.dot(v_orb);
                                 } else {
