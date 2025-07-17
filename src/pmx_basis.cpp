@@ -815,7 +815,7 @@ inline Eigen::Vector3d uvec_T (Eigen::Vector3d v){
 
 
 
-std::vector<Eigen::Vector3cd> ovec_LT(Eigen::Vector3cd v1, Eigen::Vector3cd v2) 
+std::vector<Eigen::Vector3cd> ovec_LT(Eigen::Vector3d v1, Eigen::Vector3d v2)
 {
     std::vector<Eigen::Vector3cd> ovec(3);
 
