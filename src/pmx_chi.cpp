@@ -531,22 +531,22 @@ void chi_tensor(env &dat){
                                 // Apply contributions
                                 int c_spin = c % 2;  // 0=up, 1=down
                                 int v_spin = v % 2;
-                                double dE = E_k[k][c]-E_kq[k][v];
+                                double sq_dE = sqrt(E_k[k][c]-E_kq[k][v]);
                                 if (c_spin == v_spin) {
                                     if (c_spin == 0) {
                                         // Both spin-up
-                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
+                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution / sq_dE;
                                     } else {
                                         // Both spin-down
-                                        ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution / sq_dE;
                                     }
                                 } else {
                                     if (c_spin == 0) {
                                         // up-down spin
-                                        ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution / sq_dE;
                                     } else {
                                         // down-up spin
-                                        ointdownup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution / sq_dE;
                                     }
                                 }
                             }
@@ -577,23 +577,24 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            if (c_spin == v_spin) {
-                                if (c_spin == 0) {
-                                    // Both spin-up
-                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                                } else {
-                                    // Both spin-down
-                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                                }
-                            } else {
-                                if (c_spin == 0) {
-                                    // up-down spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                                } else {
-                                    // down-up spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                                }
-                            }
+                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            // if (c_spin == v_spin) {
+                            //     if (c_spin == 0) {
+                            //         // Both spin-up
+                            //         Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            //     } else {
+                            //         // Both spin-down
+                            //         Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            //     }
+                            // } else {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real()
                                                         * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
