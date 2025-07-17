@@ -522,7 +522,7 @@ void chi_tensor(env &dat){
                                 Eigen::Vector3cd uvec1;
                                 Eigen::Vector3cd uvec2;
 
-                                uvec1 = cos(pi / 3.0) * uvec_m[1] + sin(pi / 3.0) * uvec_m[2]; // Rotate uvec1 by 120 degrees
+                                uvec1 = cos(1.5*pi/4) * uvec_m[1] + sin(1.5*pi/4) * uvec_m[2]; // Rotate uvec1 by 120 degrees
                                 uvec2 = uvec0.cross(uvec1).normalized(); // Recompute u
                                 if (i==0){
                                     orb_contribution = uvec0.dot(v_orb);
