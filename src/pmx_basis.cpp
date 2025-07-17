@@ -826,7 +826,7 @@ std::vector<Eigen::Vector3cd> ovec_LT(Eigen::Vector3d v1, Eigen::Vector3d v2)
     if (v2.squaredNorm() < 1e-12) {
         // If v2 is zero, we can't define a plane. Return two arbitrary
         // orthogonal unit vectors.
-        Eigen::Vector3cd out1(1.0, 0.0, 0.0);
+        Eigen::Vector3cd out1(0.0, 0.0, 1.0);
         Eigen::Vector3cd out2(0.0, 1.0, 0.0);
         return {out1, out2};
     }

@@ -518,7 +518,7 @@ void chi_tensor(env &dat){
                                 int loci_p = dat.lat.loci[m][p];
                                 std::complex<double> orb_contribution;
                                 Eigen::Vector3d v_orb = dat.lat.G[p] + K;
-                                std::vector<Eigen::Vector3cd> ovec_m = ovec_LT(Q+dat.lat.G[m],dat.lat.G[p] + K);
+                                std::vector<Eigen::Vector3cd> ovec_m = ovec_LT(dat.lat.G[p] + K,Q+dat.lat.G[m]);
 
                                 if (i==0){;
                                     orb_contribution = ovec_m[i].dot(v_orb) + 0.5;
