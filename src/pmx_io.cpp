@@ -197,7 +197,7 @@ void init_crystal(inputParser inp, lattice &lat){
         // reciprocal lattice vectors in units of [2*pi/a]
         lat.reciprocal.reserve(3);
         lat.reciprocal.push_back({1,-1/sqrt(3),0});
-        lat.reciprocal.push_back({1,1/sqrt(3),0});
+        lat.reciprocal.push_back({0,2.0/3.0,0});
         lat.reciprocal.push_back({0,0,1.0/lat.f});
         lat.bz_volume = abs((lat.reciprocal[0].cross(lat.reciprocal[1])).dot(lat.reciprocal[2]));
 
