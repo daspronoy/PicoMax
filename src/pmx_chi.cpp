@@ -611,7 +611,7 @@ void chi_tensor(env &dat){
                 }
 
                 dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
+                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (2*tmp_real_1/pi);
             }
         }}}}
         #pragma omp barrier
