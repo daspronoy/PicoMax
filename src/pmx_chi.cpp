@@ -528,6 +528,8 @@ void chi_tensor(env &dat){
                                 std::complex<double> soc_contribution = 0.0 * SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
                                 // std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
+                                int c_spin = c % 2;  // 0=up, 1=down
+                                int v_spin = v % 2;
                                 if (c_spin == v_spin) {
                                     if (c_spin == 0) {
                                         // Both spin-up
