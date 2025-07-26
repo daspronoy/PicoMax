@@ -536,7 +536,7 @@ void chi_tensor(env &dat){
                                     orb_contribution = uvecn.dot(v_orb);
                                 }
                                 // Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
-                                std::complex<double> soc_contribution = SF_SOC * uvec_m[i].dot(v_soc_cache[i_active]);
+                                std::complex<double> soc_contribution = uvec_m[i].dot(v_soc_cache[i_active]);
                                 // std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 // Apply contributions
                                 int c_spin = c % 2;  // 0=up, 1=down
@@ -555,7 +555,7 @@ void chi_tensor(env &dat){
                                         ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
                                     } else {
                                         // down-up spin
-                                        ointdownup[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
+                                        ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                                     }
                                 }
                             }
