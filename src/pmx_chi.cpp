@@ -551,16 +551,18 @@ void chi_tensor(env &dat){
                         for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];
+                            double dE = E_k[k][c]-E_kq[k][v];\
+                            Oij = {0.0, 0.0};
                             
-
+                            std::complex<double> O_up;
+                            std::complex<double> O_down;
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
-                                    std::complex<double> O_up = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                                    O_up = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                                 } else {
                                     // Both spin-down
-                                    std::complex<double> O_down = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                                    O_down = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
                             } 
                             // else {
@@ -573,7 +575,6 @@ void chi_tensor(env &dat){
                             //     }
                             // }
                             
-                            Oij += O_up + O_down;
 
                             // Symmetrize over m and n for the spin-conserving part when m!=n
                             if (m != n) {
