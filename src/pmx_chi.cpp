@@ -552,30 +552,42 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            if (dE <0.01){
-                                dE = 0;
-                            }
+                            
+
                             if (c_spin == v_spin) {
                                 if (c_spin == 0) {
                                     // Both spin-up
-                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                                    std::complex<double> O_up = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                                 } else {
                                     // Both spin-down
-                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                                    std::complex<double> O_down = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
-                            } else {
-                                if (c_spin == 0) {
-                                    // up-down spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                                } else {
-                                    // down-up spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                                }
+                            } 
+                            // else {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
+                            
+                            Oij += O_up + O_down;
+
+                            // Symmetrize over m and n for the spin-conserving part when m!=n
+                            if (m != n) {
+                                O_up += ointup[k][i][n][c][v] * conj(ointup[k][j][m][c][v]);
+                                O_down += ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]);
+                                O_up *= 0.5;
+                                O_down *= 0.5;
                             }
-                            tmp_imag_1 += dat.lat.KW[k] * Oij.real()
-                                                        * (*diracdelta)(dE-dat.freq[f]);
-                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag()
-                                                * (*diracdelta)(dE-dat.freq[f]);
+                            Oij += O_up + O_down;
+
+
+
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
                         }
                     }   
                 }
