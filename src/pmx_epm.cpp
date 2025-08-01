@@ -417,7 +417,7 @@ void setRefEnergy(pmx::env &dat){
     // For now, keeping it as is. If dat.nvalence refers to the Nth eigenvalue in the list.
     if (dat.nvalence > 0 && dat.nvalence <= eigsolver.eigenvalues().size()) {
         // dat.energyoffset = eigsolver.eigenvalues()(dat.nvalence - 1)-0.117716;
-        dat.energyoffset = (eigsolver.eigenvalues()(dat.nvalence - 1)+eigsolver.eigenvalues()(dat.nvalence))/2.0;
+        dat.energyoffset = (eigsolver.eigenvalues()(dat.nvalence - 1)+eigsolver.eigenvalues()(dat.nvalence))/2.0 + 0.01;
     } else {
         std::cout << "WARNING::setRefEnergy:: nvalence is out of bounds for eigenvalues. Setting offset to 0." << std::endl;
         dat.energyoffset = 0.0;
