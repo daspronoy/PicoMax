@@ -41,9 +41,8 @@
 
 
 #include "pmx_chi.hpp"      // Function declarations for susceptibility calculations
-#include "pmx_epm.hpp"
-
-double (*diracdelta)(double);
+#include "pmx_epm.hpp"      // Empirical pseudopotential method Hamiltonian
+#include "pmx_basis.hpp"    // Basis set and G-vector utilities
 
 /*
     FUNCTION DEFINITIONS
@@ -199,25 +198,6 @@ inline double diracdelta_rect(double x){
     - w: Frequency grid points
     - dw: Frequency spacing
 */
-
-
-
-// Helper function to calculate the spin projection along z for a given eigenvector
-// The eigenvector is a column vector from the eigensolver, with layout [c_G1_up, c_G1_down, c_G2_up, c_G2_down, ...]
-double calculate_spin_z(const Eigen::VectorXcd& eigenvector) {
-    double sz_expectation = 0.0;
-    // NPW is a global constant representing the number of plane waves
-    for (int p = 0; p < NPW; ++p) {
-        // Coefficient for the spin-up component at plane wave G_p
-        std::complex<double> c_up = eigenvector(2 * p);
-        // Coefficient for the spin-down component at plane wave G_p
-        std::complex<double> c_down = eigenvector(2 * p + 1);
-        sz_expectation += std::norm(c_up) - std::norm(c_down);
-    }
-    return sz_expectation;
-}
-
-
 
 
 inline Eigen::Vector3cd socCurrent(Eigen::Vector3d Ki,      // bra  G‑vector
@@ -387,28 +367,27 @@ void chi_tensor(env &dat){
     }
 
     //======================================================================
-    std::cout << "  Solving for |k,c> states and their spin..." << std::endl;
+    std::cout << "  Solving for |k,v>..." << std::endl;
     time_0 = std::chrono::system_clock::now();
     int NBAND_C [NKPT]; // number of conduction bands
-    double **E_k; // eigenvalue at k [NK x NBAND]
-    double **SpinZ_k; // spin-z projection at k
-    std::complex<double> ***C_k; // eigenvector at k [NK x NBAND x NPW_SOC]
-    
+    double **E_k; // eigenvalue at k [NK x NC]
     E_k = new double *[NKPT];
-    SpinZ_k = new double *[NKPT];
+    std::complex<double> ***C_k; // eigenvector at k [NK x NC x NPW]
     C_k = new std::complex<double> **[NKPT];
-
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
+        // vector{k}
         Eigen::Vector3d K = dat.lat.K[k];
+
+        // Hamiltonian at k
         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K,dat.lat.atomic,dat.mat);   
+        
+        // compute eigenvalue problem at k
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
 
         E_k[k] = new double [NBAND];
-        SpinZ_k[k] = new double [NBAND];
         for (int c=0; c<NBAND; c++){
             E_k[k][c] = eigsolver_k.eigenvalues()(NBAND-1-c)-dat.energyoffset;
-            SpinZ_k[k][c] = calculate_spin_z(eigsolver_k.eigenvectors().col(NBAND-1-c));
             if (E_k[k][c]<=0) {
                 NBAND_C[k] = c;
                 break;
@@ -420,8 +399,8 @@ void chi_tensor(env &dat){
             C_k[k][c] = new std::complex<double> [NPW_SOC];
             for (int p=0; p<NPW_SOC; p++){
                 C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
-            }
-        }
+            }// loop over p
+        }// loop over c
     }
     #pragma omp barrier
     time_1 = std::chrono::system_clock::now();
@@ -429,12 +408,17 @@ void chi_tensor(env &dat){
     std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
 
     //======================================================================
-    // initialize large temporary variables for overlap integrals
-    std::complex<double> *****ointup, *****ointdown, *****ointupdown, *****ointdownup;
-    ointup = new std::complex<double> ****[NKPT];
-    ointdown = new std::complex<double> ****[NKPT];
-    ointupdown = new std::complex<double> ****[NKPT];
-    ointdownup = new std::complex<double> ****[NKPT];
+    // initialize large temporary variables
+    // overlap integral, t_{Q+G_m} * <k,v|e^{-i*G_m}j_0|k+q,c> <k+q,c|e^{i*G_n}j_0|k,v> * t_{Q+G_n}
+    // std::complex<double> *****oint;
+    std::complex<double> *****ointup;
+    std::complex<double> *****ointdown;
+    std::complex<double> *****ointupdown;
+    std::complex<double> *****ointdownup;
+    ointup = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointdown = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointupdown = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
+    ointdownup = new std::complex<double> ****[NKPT]; // overlap integral [NK x NTSR x NEPS x NC x NV]
     for (int k=0; k<NKPT; k++){
         ointup[k] = new std::complex<double> ***[3];
         ointdown[k] = new std::complex<double> ***[3];
@@ -456,20 +440,16 @@ void chi_tensor(env &dat){
 
     std::cout << "  Solving for susceptibility tensor matrix elements..." << std::endl;
     int NBAND_V [NKPT]; // number of valence bands
-    double **E_kq; // eigenvalue at k+q
-    double **SpinZ_kq; // spin-z projection at k+q
     std::complex<double> ***C_kq; // eigenvector at k+q
-
+    double **E_kq; // eigenvalue at k
     E_kq = new double *[NKPT];
-    SpinZ_kq = new double *[NKPT];
     C_kq = new std::complex<double> **[NKPT];
     for (int k=0; k<NKPT; k++){
         E_kq[k] = new double [NBAND];
-        SpinZ_kq[k] = new double [NBAND];
     }
-
+    // #pragma omp parallel
     for (int q=0; q<NQ; q++){
-        std::cout << "  (" << (q+1) << "/" << NQ << ")..." << std::endl;
+        std::cout << "  (" << (q+1) << "/" << NQ << ")..." << std::endl; // (q/NQ)
         Eigen::Vector3d Q = dat.lat.Q[q];
 
         std::cout << "    Solving for overlap integrals..." << std::endl;
@@ -477,13 +457,14 @@ void chi_tensor(env &dat){
         #pragma omp parallel for
         for (int k=0; k<NKPT; k++){
             
+            // Hamiltonian at k+q
             Eigen::Vector3d K = dat.lat.K[k];
             Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
-            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
 
+            // compute eigenvalue problem at k+q
+            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
             for (int v=0; v<NBAND; v++){
                 E_kq[k][v] = double(eigsolver_kq.eigenvalues()(v))-dat.energyoffset;
-                SpinZ_kq[k][v] = calculate_spin_z(eigsolver_kq.eigenvectors().col(v));
                 if (E_kq[k][v]>0) {
                     NBAND_V[k] = v;
                     break;
@@ -498,8 +479,11 @@ void chi_tensor(env &dat){
                 }
             }
             
+            // overlap integrals
             for (int m=0; m<NEPS; m++){
                 std::vector<Eigen::Vector3cd> uvec_m = uvec_LT(Q+dat.lat.G[m]);
+                
+                // Pre-compute active G indices for this m ONCE per m
                 std::vector<int> active_G_indices;
                 for (int p=0; p<NPW; p++){
                     if (dat.lat.loci[m][p] != -1){
@@ -507,6 +491,7 @@ void chi_tensor(env &dat){
                     }
                 }
                 
+                // Pre-calculate SOC contribution once per (k,m) pair for active indices only
                 std::vector<Eigen::Vector3cd> v_soc_cache(active_G_indices.size());
                 for (size_t i_active = 0; i_active < active_G_indices.size(); i_active++){
                     int p = active_G_indices[i_active];
@@ -515,6 +500,7 @@ void chi_tensor(env &dat){
                         dat.lat.G[p], dat.lat.G[loci_p], dat.mat, dat.lat.atomic);
                 }
 
+
                 for (int i=0; i<NTSR; i++){
                     for (int c=0; c<NBAND_C[k]; c++){
                         ointup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
@@ -522,6 +508,7 @@ void chi_tensor(env &dat){
                         ointupdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         ointdownup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         for (int v=0; v<NBAND_V[k]; v++){
+                            // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             ointup[k][i][m][c][v] = 0;
                             ointupdown[k][i][m][c][v] = 0;
                             ointdownup[k][i][m][c][v] = 0;
@@ -534,12 +521,15 @@ void chi_tensor(env &dat){
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+
+                                // ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
+                                // ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
                             }
-                        }
-                    }
-                }
-            }
-        }
+                        }//loop over v
+                    }//loop over c
+                }//loop over i
+            }//loop over m
+        }//loop over k
         #pragma omp barrier
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
@@ -554,40 +544,48 @@ void chi_tensor(env &dat){
                 double tmp_imag_1 = 0;
                 double tmp_real_2 = 0;
                 double tmp_imag_2 = 0;
-                
+                // sum over k,c,v
                 std::complex<double> Oij;
                 for (int k=0; k<NKPT; k++){
                     for (int c=0; c<NBAND_C[k]; c++){
-                        for (int v=0; v<NBAND_V[k]; v++){
-                            double dE = E_k[k][c]-E_kq[k][v];
+                        for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
+                            int c_spin = c % 2;  // 0=up, 1=down
+                            int v_spin = v % 2;
+                            double dE = E_k[k][c]-E_kq[k][v];\
+                            Oij = {0.0, 0.0};
                             
-                            // NOTE: This logic uses the calculated spin projection to categorize transitions.
-                            // A positive value indicates spin-up dominance, negative for spin-down.
-                            // This replaces the incorrect `c % 2` assumption.
-                            // The most physically robust method is to sum all four channels for every
-                            // transition, as SOC mixes all states. This is a direct implementation
-                            // of the user's request to check and use spin.
-                            bool c_is_up_like = (SpinZ_k[k][c] > 0.0);
-                            bool v_is_up_like = (SpinZ_kq[k][v] > 0.0);
-
-                            if (c_is_up_like == v_is_up_like) { // spin-conserving-like transitions
-                                if (c_is_up_like) {
-                                    // Both spin-up like
-                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            std::complex<double> O_up;
+                            std::complex<double> O_down;
+                            if (c_spin == v_spin) {
+                                if (c_spin == 0) {
+                                    // Both spin-up
+                                    O_up = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
                                 } else {
-                                    // Both spin-down like
-                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                                    // Both spin-down
+                                    O_down = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
                                 }
                             } 
-                            else { // spin-flipping-like transitions
-                                if (c_is_up_like) {
-                                    // up-like to down-like spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                                } else {
-                                    // down-like to up-like spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                                }
+                            // else {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
+                            
+
+                            // Symmetrize over m and n for the spin-conserving part when m!=n
+                            if (m != n) {
+                                O_up += ointup[k][i][n][c][v] * conj(ointup[k][j][m][c][v]);
+                                O_down += ointdown[k][i][n][c][v] * conj(ointdown[k][j][m][c][v]);
+                                O_up *= 0.5;
+                                O_down *= 0.5;
                             }
+                            Oij += O_up + O_down;
+
+
 
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
@@ -628,19 +626,23 @@ void chi_tensor(env &dat){
             std::cout << "    Elapsed time: " << elapsed_time.count() << " s" << std::endl;
         }
         
+
+        // // free dynamically allocated memory
+        // for (int k=0; k<NKPT; k++){for (int i=0; i<NTSR; i++){for (int m=0; m<NEPS; m++){for (int v=0; v<NBAND_V[k]; v++){
+        //     delete [] oint[k][i][m][v];
+        // }}}}
+        // for (int k=0; k<NKPT; k++){
+        //     for (int c=0; c<NBAND_C[k]; c++){
+        //         delete [] C_kq[k][c];
+        //     }
+        //     delete [] C_kq[k];
+        // }
     }// loop q
 
     // free dynamically allocated memory
     for (int k=0; k<NKPT; k++){
         for (int i=0; i<NTSR; i++){
             for (int m=0; m<NEPS; m++){
-                // The innermost pointers were allocated for NBAND_C[k] bands
-                for (int c=0; c<NBAND_C[k]; ++c) {
-                    delete [] ointup[k][i][m][c];
-                    delete [] ointdown[k][i][m][c];
-                    delete [] ointupdown[k][i][m][c];
-                    delete [] ointdownup[k][i][m][c];
-                }
                 delete [] ointup[k][i][m];
                 delete [] ointdown[k][i][m];
                 delete [] ointupdown[k][i][m];
@@ -661,4 +663,20 @@ void chi_tensor(env &dat){
     delete [] ointupdown;
     delete [] ointdownup;
 
-    for
+    for (int k=0; k<NKPT; k++){
+        for (int v=0; v<NBAND_V[k]; v++){
+            delete [] C_k[k][v];
+        }
+        delete [] C_k[k];
+        delete [] E_k[k];
+        delete [] E_kq[k];
+    }
+    delete [] E_k;
+    delete [] E_kq;
+    delete [] C_k;
+    delete [] C_kq;
+
+    return;
+}
+
+} /* namespace pmx */

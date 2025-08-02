@@ -310,6 +310,9 @@ std::complex<double> nonlocalpseudopotential(Eigen::Vector3d Gm, Eigen::Vector3d
     // The kfermi term needs to be in same units as Km_phys*Kn_phys for KCON scaling.
     // Km_phys is like k * (2pi/a). So Km_phys / (2pi/a) is dimensionless k.
     // kfermi_phys is k_F. So kfermi_phys / (2pi/a) is dimensionless k_F.
+    // a0E = a0*Ry2eV + b0*Ry2eV*KCON * ( (Km_dimless*Kn_dimless) - kf_dimless^2 )
+    // where Km_dimless = Gm.norm(), Kn_dimless = Gn.norm()
+    // kf_dimless = kfermi_phys * a / (2*pi)
     double Km_dimless = Gm.norm();
     double Kn_dimless = Gn.norm();
     double kf_dimless = kfermi_phys * (a*angstrom) / (2.0*pi); // a in Angstrom
@@ -427,6 +430,8 @@ void setRefEnergy(pmx::env &dat){
 
 
 
+
+
 /*
     Calculates the spin projection along the z-axis for each electronic state.
 
@@ -507,16 +512,8 @@ void setRefEnergy(pmx::env &dat){
 //     return;
 // }
 
-double calculate_spin_z(const Eigen::VectorXcd& eigenvector) {
-    double spin_z = 0.0;
-    int npw = eigenvector.size() / 2;
-    for (int i = 0; i < npw; ++i) {
-        // spin-up component at index 2*i
-        spin_z += std::norm(eigenvector(2 * i));
-        // spin-down component at index 2*i + 1
-        spin_z -= std::norm(eigenvector(2 * i + 1));
-    }
-    return spin_z;
-}
+
+
+
 
 }/* namespace pmx */

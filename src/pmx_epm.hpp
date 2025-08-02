@@ -24,7 +24,6 @@ namespace pmx {
     double sphbesj(int n, double r);
     void setRefEnergy(pmx::env &dat);
     void calculateSpinProjection(pmx::env &dat);
-    double calculate_spin_z(const Eigen::VectorXcd& eigenvector);
 
 } /* namespace pmx */
 
