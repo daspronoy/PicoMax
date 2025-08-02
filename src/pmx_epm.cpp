@@ -513,7 +513,4 @@ void setRefEnergy(pmx::env &dat){
 // }
 
 
-
-
-
 }/* namespace pmx */
