@@ -252,7 +252,6 @@ void empiricalpseudopotentialmethod(pmx::env &dat){
     return;
 }
 
-
 /*
     Returns the nonlocal pseudopotential Vg^NL
 
@@ -311,9 +310,6 @@ std::complex<double> nonlocalpseudopotential(Eigen::Vector3d Gm, Eigen::Vector3d
     // The kfermi term needs to be in same units as Km_phys*Kn_phys for KCON scaling.
     // Km_phys is like k * (2pi/a). So Km_phys / (2pi/a) is dimensionless k.
     // kfermi_phys is k_F. So kfermi_phys / (2pi/a) is dimensionless k_F.
-    // a0E = a0*Ry2eV + b0*Ry2eV*KCON * ( (Km_dimless*Kn_dimless) - kf_dimless^2 )
-    // where Km_dimless = Gm.norm(), Kn_dimless = Gn.norm()
-    // kf_dimless = kfermi_phys * a / (2*pi)
     double Km_dimless = Gm.norm();
     double Kn_dimless = Gn.norm();
     double kf_dimless = kfermi_phys * (a*angstrom) / (2.0*pi); // a in Angstrom
@@ -426,6 +422,101 @@ void setRefEnergy(pmx::env &dat){
         }
     }
     return;
+}
+
+
+
+
+/*
+    Calculates the spin projection along the z-axis for each electronic state.
+
+    This function computes the band structure (eigenvalues and eigenvectors)
+    and then calculates the expectation value <S_z> for each state |n,k>.
+    The result is stored in dat.spin_proj_z and written to "spin_projection.dat".
+*/
+// void calculateSpinProjection(pmx::env &dat){
+//     dat.eband = new double*[NQ];
+//     dat.spin_proj_z = new double*[NQ];
+
+//     // Obtain energy offset by calculating bands at a reference point
+//     setRefEnergy(dat);
+
+//     // Open a file to save the spin projection data
+//     std::ofstream spin_file("spin_projection.dat");
+//     if (!spin_file.is_open()) {
+//         std::cout << "ERROR: Could not open spin_projection.dat for writing." << std::endl;
+//     } else {
+//         spin_file << "# k-point_index Band_Index Energy(eV) Spin_Z(<S_z>/[hbar/2])" << std::endl;
+//     }
+
+//     #pragma omp parallel for
+//     for (int q = 0; q < NQ; q++){
+//         // Construct the SOC Hamiltonian
+//         Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G, dat.lat.Q[q], dat.lat.atomic, dat.mat);
+
+//         // Diagonalize the Hamiltonian to get eigenvalues AND eigenvectors
+//         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver(H);
+//         if (eigsolver.info() != Eigen::Success){ 
+//             std::cout << "ERROR: Eigensolver failed to solve the matrix for k-point " << q << std::endl; 
+//             // Continue to next iteration in parallel loop
+//             continue;
+//         }
+
+//         // Allocate memory for the current k-point
+//         dat.eband[q] = new double[NBAND];
+//         dat.spin_proj_z[q] = new double[NBAND];
+        
+//         Eigen::MatrixXcd eigenvectors = eigsolver.eigenvectors();
+
+//         for (int n = 0; n < NBAND; n++){
+//             if (n < eigsolver.eigenvalues().size()) {
+//                 // Store the energy eigenvalue, shifted by the reference energy
+//                 dat.eband[q][n] = double(eigsolver.eigenvalues()(n)) - dat.energyoffset;
+
+//                 // Calculate the expectation value of sigma_z for the n-th eigenvector
+//                 // <S_z> = Sum_p ( |c_p,up|^2 - |c_p,down|^2 )
+//                 double sz_expectation = 0.0;
+//                 for (int p = 0; p < NPW; ++p) {
+//                     // Coefficient for spin-up component of G_p
+//                     std::complex<double> c_up = eigenvectors(2 * p, n);
+//                     // Coefficient for spin-down component of G_p
+//                     std::complex<double> c_down = eigenvectors(2 * p + 1, n);
+//                     sz_expectation += std::norm(c_up) - std::norm(c_down);
+//                 }
+//                 dat.spin_proj_z[q][n] = sz_expectation;
+
+//             } else {
+//                 // Handle cases where NBAND is larger than available eigenvalues
+//                 dat.eband[q][n] = 0.0;
+//                 dat.spin_proj_z[q][n] = 0.0;
+//             }
+//         }
+//     }
+
+//     // Write the results to the file in a structured way (serially after parallel computation)
+//     if (spin_file.is_open()) {
+//         for (int q = 0; q < NQ; ++q) {
+//             for (int n = 0; n < NBAND; ++n) {
+//                 spin_file << q << " " << n << " " << dat.eband[q][n] << " " << dat.spin_proj_z[q][n] << std::endl;
+//             }
+//             spin_file << std::endl; // Add a blank line between k-points for gnuplot
+//         }
+//         spin_file.close();
+//     }
+
+//     return;
+// }
+
+double calculate_spin_z(const Eigen::VectorXcd& eigenvector) {
+    double spin_z = 0.0;
+    int npw = eigenvector.size() / 2;
+    for (int i = 0; i < npw; ++i) {
+        // spin-up component at index 2*i
+        spin_z += std::norm(eigenvector(2 * i));
+        // spin-down component at index 2*i + 1
+        spin_z -= std::norm(eigenvector(2 * i + 1));
+    }
+    return spin_z;
 }
 
 }/* namespace pmx */

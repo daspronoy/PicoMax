@@ -23,6 +23,8 @@ namespace pmx {
     std::complex<double> nonlocalpseudopotential(Eigen::Vector3d Kkvecm, Eigen::Vector3d Kkvecn, std::vector<double>v);
     double sphbesj(int n, double r);
     void setRefEnergy(pmx::env &dat);
+    void calculateSpinProjection(pmx::env &dat);
+    double calculate_spin_z(const Eigen::VectorXcd& eigenvector);
 
 } /* namespace pmx */
 

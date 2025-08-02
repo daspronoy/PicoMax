@@ -178,6 +178,8 @@ struct env {
     double ******ReXij;
     double ******ImXij;
 
+    double **spin_proj_z; // Expectation value of Sz for each state
+    
     // electronic bandstructure [q][n]
     double **eband;
 };
