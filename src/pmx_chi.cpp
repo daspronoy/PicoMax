@@ -553,7 +553,7 @@ void chi_tensor(env &dat){
                                 spin_sum_c += conj(C_k[k][c][2*p])*C_k[k][c][2*p]-conj(C_k[k][c][2*p+1])*C_k[k][c][2*p+1];
                             }
                         int c_spin;  // 0=up, 1=down
-                        if (spin_sum_c>0){
+                        if (real(spin_sum_c)>0){
                             c_spin = 0;
                         } else {
                             c_spin = 1;
@@ -565,7 +565,7 @@ void chi_tensor(env &dat){
                                 spin_sum_v += conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
                             }
                             int v_spin;
-                            if (spin_sum_v>0){
+                            if (real(spin_sum_v)>0){
                                 v_spin = 0;
                             } else {
                                 v_spin = 1;
