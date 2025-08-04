@@ -560,7 +560,7 @@ void chi_tensor(env &dat){
                         }
 
                         for (int v=0; v<NBAND_V[k]; v++){
-                            std::complex<double>s spin_sum_v = 0.0;
+                            std::complex<double> spin_sum_v = 0.0;
                             for (int p=0; p<NPW; p++){
                                 spin_sum_v += conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
                             }
