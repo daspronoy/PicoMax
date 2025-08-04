@@ -548,9 +548,25 @@ void chi_tensor(env &dat){
                 std::complex<double> Oij;
                 for (int k=0; k<NKPT; k++){
                     for (int c=0; c<NBAND_C[k]; c++){
-                        for (int v=0; v<NBAND_V[k]; v++){ // same spin terms
-                            int c_spin = c % 2;  // 0=up, 1=down
-                            int v_spin = v % 2;
+                        for (int v=0; v<NBAND_V[k]; v++){
+                            double spin_sum_c = 0.0;
+                            double spin_sum_v = 0.0;
+                            for (int p=0; p<NPW; p++){
+                                spin_sum_c+=conj(C_k[k][c][2*p])*C_k[k][c][2*p]-conj(C_k[k][c][2*p+1])*C_k[k][c][2*p+1];
+                                spin_sum_v+=conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
+                            }
+                            int c_spin;  // 0=up, 1=down
+                            int v_spin;
+                            if (spin_sum_c>0){
+                                c_spin = 0;
+                            } else {
+                                c_spin = 1;
+                            }
+                            if (spin_sum_v>0){
+                                v_spin = 0;
+                            } else {
+                                v_spin = 1;
+                            }
                             double dE = E_k[k][c]-E_kq[k][v];
                             
                             if (c_spin == v_spin) {
