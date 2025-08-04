@@ -550,7 +550,7 @@ void chi_tensor(env &dat){
                     for (int c=0; c<NBAND_C[k]; c++){
                         std::complex<double> spin_sum_c = 0.0;
                         for (int p=0; p<NPW; p++){
-                                spin_sum_c += conj(C_k[k][c][2*p])*C_k[k][c][2*p]-conj(C_k[k][c][2*p+1])*C_k[k][c][2*p+1];
+                                spin_sum_c += conj(C_k[k][c][p+NPW])*C_k[k][c][p+NPW]-conj(C_k[k][c][p])*C_k[k][c][p];
                             }
                         int c_spin;  // 0=up, 1=down
                         if (real(spin_sum_c)>0){
@@ -562,7 +562,7 @@ void chi_tensor(env &dat){
                         for (int v=0; v<NBAND_V[k]; v++){
                             std::complex<double> spin_sum_v = 0.0;
                             for (int p=0; p<NPW; p++){
-                                spin_sum_v += conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
+                                spin_sum_v += conj(C_kq[k][v][p+NPW])*C_kq[k][v][p+NPW]-conj(C_kq[k][v][p])*C_kq[k][v][p];
                             }
                             int v_spin;
                             if (real(spin_sum_v)>0){
