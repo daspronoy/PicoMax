@@ -372,7 +372,8 @@ void chi_tensor(env &dat){
     int NBAND_C [NKPT]; // number of conduction bands
     double **E_k; // eigenvalue at k [NK x NC]
     E_k = new double *[NKPT];
-    std::complex<double> ***C_k; // eigenvector at k [NK x NC x NPW]
+    std::complex<double> ***C_k_up; // eigenvector at k [NK x NC x NPW]
+    std::complex<double> ***C_k_down; // eigenvector at k [NK x NC x NPW]
     C_k_up = new std::complex<double> **[NKPT];
     C_k_down = new std::complex<double> **[NKPT];
     #pragma omp parallel for
@@ -394,7 +395,8 @@ void chi_tensor(env &dat){
                 break;
             }
         }
-        C_k[k] = new std::complex<double> *[NBAND_C[k]];
+        C_k_up[k] = new std::complex<double> *[NBAND_C[k]];
+        C_k_down[k] = new std::complex<double> *[NBAND_C[k]];
         for (int c=0; c<NBAND_C[k]; c++){
             const int NPW_SOC = 2 * NPW;
             // C_k[k][c] = new std::complex<double> [NPW_SOC];
@@ -447,7 +449,8 @@ void chi_tensor(env &dat){
 
     std::cout << "  Solving for susceptibility tensor matrix elements..." << std::endl;
     int NBAND_V [NKPT]; // number of valence bands
-    std::complex<double> ***C_kq; // eigenvector at k+q
+    std::complex<double> ***C_kq_up; // eigenvector at k+q
+    std::complex<double> ***C_kq_down; // eigenvector at k+q
     double **E_kq; // eigenvalue at k
     E_kq = new double *[NKPT];
     C_kq_up = new std::complex<double> **[NKPT];
@@ -478,7 +481,8 @@ void chi_tensor(env &dat){
                     break;
                 }
             }
-            C_kq[k] = new std::complex<double> *[NBAND_V[k]];
+            C_kq_up[k] = new std::complex<double> *[NBAND_V[k]];
+            C_kq_down[k] = new std::complex<double> *[NBAND_V[k]];
             for (int v=0; v<NBAND_V[k]; v++){
                 const int NPW_SOC = 2 * NPW;
                 // C_kq[k][v] = new std::complex<double> [NPW_SOC];
@@ -664,16 +668,18 @@ void chi_tensor(env &dat){
 
     for (int k=0; k<NKPT; k++){
         for (int v=0; v<NBAND_V[k]; v++){
-            delete [] C_k[k][v];
+            delete [] C_k_up[k][v];
+            delete [] C_k_down[k][v];
         }
-        delete [] C_k[k];
+        delete [] C_k_up[k];
+        delete [] C_k_down[k];
         delete [] E_k[k];
         delete [] E_kq[k];
     }
     delete [] E_k;
     delete [] E_kq;
-    delete [] C_k;
-    delete [] C_kq;
+    delete [] C_kq_up;
+    delete [] C_kq_down;
 
     return;
 }
