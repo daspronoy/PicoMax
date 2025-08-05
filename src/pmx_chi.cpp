@@ -507,18 +507,6 @@ void chi_tensor(env &dat){
                         ointdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         ointupdown[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
                         ointdownup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
-
-                        std::complex<double> spin_sum_c = 0.0;
-                        for (int pp=0; pp<NPW; pp++){
-                                spin_sum_c += conj(C_k[k][c][pp+NPW])*C_k[k][c][2*pp]-conj(C_k[k][c][2*pp+1])*C_k[k][c][2*pp+1];
-                            }
-                        int c_spin;  // 0=up, 1=down
-                        if (real(spin_sum_c)>0){
-                            c_spin = 0;
-                        } else {
-                            c_spin = 1;
-                        }
-                
                         for (int v=0; v<NBAND_V[k]; v++){
                             // u^i_{q+g_m} * <k,c|e^{-i*(q+g_m)*r}j_0|k+q,c>
                             ointup[k][i][m][c][v] = 0;
@@ -531,38 +519,8 @@ void chi_tensor(env &dat){
                                 Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * uvec_m[i].dot(v_soc_cache[i_active]);
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
-
-                                std::complex<double> spin_sum_v = 0.0;
-                                for (int pp=0; pp<NPW; pp++){
-                                    spin_sum_v += conj(C_kq[k][v][2*pp])*C_kq[k][v][2*pp]-conj(C_kq[k][v][2*pp+1])*C_kq[k][v][2*pp+1];
-                                }
-                                int v_spin;
-                                if (real(spin_sum_v)>0){
-                                    v_spin = 0;
-                                } else {
-                                    v_spin = 1;
-                                }
-
-                                if (c_spin == v_spin) {
-                                    if (c_spin == 0) {
-                                        // Both spin-up
-                                        ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
-                                    } else {
-                                        // Both spin-down
-                                        ointdown[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
-                                    }
-                                }
-                                // else {
-                                //     if (c_spin == 0) {
-                                //         // up-down spin
-                                //         ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
-                                //     } else {
-                                //         // down-up spin
-                                //         ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
-                                //     }
-                                // }
-                                // ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
-                                // ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
+                                ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
 
                                 // ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
                                 // ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
@@ -590,28 +548,9 @@ void chi_tensor(env &dat){
                 std::complex<double> Oij;
                 for (int k=0; k<NKPT; k++){
                     for (int c=0; c<NBAND_C[k]; c++){
-                        std::complex<double> spin_sum_c = 0.0;
-                        for (int p=0; p<NPW; p++){
-                                spin_sum_c += conj(C_k[k][c][p+NPW])*C_k[k][c][2*p]-conj(C_k[k][c][2*p+1])*C_k[k][c][2*p+1];
-                            }
-                        int c_spin;  // 0=up, 1=down
-                        if (real(spin_sum_c)>0){
-                            c_spin = 0;
-                        } else {
-                            c_spin = 1;
-                        }
-
                         for (int v=0; v<NBAND_V[k]; v++){
-                            std::complex<double> spin_sum_v = 0.0;
-                            for (int p=0; p<NPW; p++){
-                                spin_sum_v += conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
-                            }
-                            int v_spin;
-                            if (real(spin_sum_v)>0){
-                                v_spin = 0;
-                            } else {
-                                v_spin = 1;
-                            }
+                            int c_spin = c % 2;  // 0=up, 1=down
+                            int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
                             
                             if (c_spin == v_spin) {
