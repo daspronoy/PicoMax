@@ -338,7 +338,7 @@ void chi_tensor(env &dat){
     NTSR = 3;
 
     // scalefactor
-    double SCALEFACTOR = 16.0*dat.lat.bz_volume*pow(pi,5)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
+    double SCALEFACTOR = 4.0*dat.lat.bz_volume*pow(pi,5)*pow(hbar,4)*pow(e,2)/(pow(eV,3)*pow(e_m,2)*pow(a*angstrom,5));
     double SF_SOC = 1; // scale factor for spin-orbit coupling susceptibility tensor
     
 
