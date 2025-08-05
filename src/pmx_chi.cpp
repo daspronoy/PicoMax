@@ -373,7 +373,8 @@ void chi_tensor(env &dat){
     double **E_k; // eigenvalue at k [NK x NC]
     E_k = new double *[NKPT];
     std::complex<double> ***C_k; // eigenvector at k [NK x NC x NPW]
-    C_k = new std::complex<double> **[NKPT];
+    C_k_up = new std::complex<double> **[NKPT];
+    C_k_down = new std::complex<double> **[NKPT];
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
         // vector{k}
@@ -449,7 +450,8 @@ void chi_tensor(env &dat){
     std::complex<double> ***C_kq; // eigenvector at k+q
     double **E_kq; // eigenvalue at k
     E_kq = new double *[NKPT];
-    C_kq = new std::complex<double> **[NKPT];
+    C_kq_up = new std::complex<double> **[NKPT];
+    C_kq_down = new std::complex<double> **[NKPT];
     for (int k=0; k<NKPT; k++){
         E_kq[k] = new double [NBAND];
     }
