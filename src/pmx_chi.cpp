@@ -396,9 +396,15 @@ void chi_tensor(env &dat){
         C_k[k] = new std::complex<double> *[NBAND_C[k]];
         for (int c=0; c<NBAND_C[k]; c++){
             const int NPW_SOC = 2 * NPW;
-            C_k[k][c] = new std::complex<double> [NPW_SOC];
-            for (int p=0; p<NPW_SOC; p++){
-                C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
+            // C_k[k][c] = new std::complex<double> [NPW_SOC];
+            C_k_up[k][c] = new std::complex<double> [NPW];
+            C_k_down[k][c] = new std::complex<double> [NPW];
+            // for (int p=0; p<NPW_SOC; p++){
+            //     C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
+            // }// loop over p
+            for (int p=0; p<NPW; p++){
+                C_k_up[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(2*p);
+                C_k_down[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(2*p+1);
             }// loop over p
         }// loop over c
     }
@@ -473,9 +479,15 @@ void chi_tensor(env &dat){
             C_kq[k] = new std::complex<double> *[NBAND_V[k]];
             for (int v=0; v<NBAND_V[k]; v++){
                 const int NPW_SOC = 2 * NPW;
-                C_kq[k][v] = new std::complex<double> [NPW_SOC];
-                for (int p=0; p<NPW_SOC; p++){
-                    C_kq[k][v][p] = eigsolver_kq.eigenvectors().col(v)(p);
+                // C_kq[k][v] = new std::complex<double> [NPW_SOC];
+                C_kq_up[k][v] = new std::complex<double> [NPW_SOC];
+                C_kq_down[k][v] = new std::complex<double> [NPW_SOC];
+                // for (int p=0; p<NPW_SOC; p++){
+                //     C_kq[k][v][p] = eigsolver_kq.eigenvectors().col(v)(p);
+                // }
+                for (int p=0; p<NPW; p++){
+                    C_kq_up[k][v][p] = eigsolver_kq.eigenvectors().col(v)(2*p);
+                    C_kq_down[k][v][p] = eigsolver_kq.eigenvectors().col(v)(2*p+1);
                 }
             }
             
@@ -519,8 +531,8 @@ void chi_tensor(env &dat){
                                 Eigen::Vector3cd v_orb = (dat.lat.G[p] + K + Q/2 + dat.lat.G[m]/2).cast<std::complex<double>>();
                                 std::complex<double> soc_contribution = 0.0 * uvec_m[i].dot(v_soc_cache[i_active]);
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
-                                ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
-                                ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                ointup[k][i][m][c][v] += conj(C_k_up[k][c][2*p]) * C_kq_up[k][v][2*loci_p] * orb_contribution;
+                                ointdown[k][i][m][c][v] -= conj(C_k_down[k][c][2*p+1]) * C_kq_down[k][v][2*loci_p+1] * orb_contribution;
 
                                 // ointupdown[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p+1] * soc_contribution;
                                 // ointdownup[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p] * soc_contribution;
@@ -552,25 +564,25 @@ void chi_tensor(env &dat){
                             int c_spin = c % 2;  // 0=up, 1=down
                             int v_spin = v % 2;
                             double dE = E_k[k][c]-E_kq[k][v];
-                            
-                            if (c_spin == v_spin) {
-                                if (c_spin == 0) {
-                                    // Both spin-up
-                                    Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                                } else {
-                                    // Both spin-down
-                                    Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                                }
-                            } 
-                            else {
-                                if (c_spin == 0) {
-                                    // up-down spin
-                                    Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                                } else {
-                                    // down-up spin
-                                    Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                                }
-                            }
+                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]) + ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            // if (c_spin == v_spin) {
+                            //     if (c_spin == 0) {
+                            //         // Both spin-up
+                            //         Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            //     } else {
+                            //         // Both spin-down
+                            //         Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            //     }
+                            // } 
+                            // else {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
 
                             tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
                             tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
