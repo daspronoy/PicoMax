@@ -509,8 +509,8 @@ void chi_tensor(env &dat){
                         ointdownup[k][i][m][c] = new std::complex<double> [NBAND_V[k]];
 
                         std::complex<double> spin_sum_c = 0.0;
-                        for (int p=0; p<NPW; p++){
-                                spin_sum_c += conj(C_k[k][c][p+NPW])*C_k[k][c][2*p]-conj(C_k[k][c][2*p+1])*C_k[k][c][2*p+1];
+                        for (int pp=0; pp<NPW; pp++){
+                                spin_sum_c += conj(C_k[k][c][pp+NPW])*C_k[k][c][2*pp]-conj(C_k[k][c][2*pp+1])*C_k[k][c][2*pp+1];
                             }
                         int c_spin;  // 0=up, 1=down
                         if (real(spin_sum_c)>0){
@@ -533,8 +533,8 @@ void chi_tensor(env &dat){
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
 
                                 std::complex<double> spin_sum_v = 0.0;
-                                for (int p=0; p<NPW; p++){
-                                    spin_sum_v += conj(C_kq[k][v][2*p])*C_kq[k][v][2*p]-conj(C_kq[k][v][2*p+1])*C_kq[k][v][2*p+1];
+                                for (int pp=0; pp<NPW; pp++){
+                                    spin_sum_v += conj(C_kq[k][v][2*pp])*C_kq[k][v][2*pp]-conj(C_kq[k][v][2*pp+1])*C_kq[k][v][2*pp+1];
                                 }
                                 int v_spin;
                                 if (real(spin_sum_v)>0){
@@ -549,7 +549,7 @@ void chi_tensor(env &dat){
                                         ointup[k][i][m][c][v] += conj(C_k[k][c][2*p]) * C_kq[k][v][2*loci_p] * orb_contribution;
                                     } else {
                                         // Both spin-down
-                                        ointdown[k][i][m][c][v] += conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
+                                        ointdown[k][i][m][c][v] -= conj(C_k[k][c][2*p+1]) * C_kq[k][v][2*loci_p+1] * orb_contribution;
                                     }
                                 }
                                 // else {
