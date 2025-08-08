@@ -601,42 +601,49 @@ void chi_tensor(env &dat){
         
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
-        #pragma omp parallel for collapse(4)
-        for (int i=0; i<NTSR; i++){for (int j=0; j<NTSR; j++){for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
-            for (int f=0; f<NFREQ; f++){
-                double tmp_real_1 = 0;
-                double tmp_imag_1 = 0;
-                double tmp_real_2 = 0;
-                double tmp_imag_2 = 0;
-                // sum over k,c,v
-                std::complex<double> Oij;
-                for (int k=0; k<NKPT; k++){
-                    for (int c=0; c<NBAND_C[k]; c++){
-                        for (int v=0; v<NBAND_V[k]; v++){
-                            int c_spin = c % 2;  // 0=up, 1=down
-                            int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];
-                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]) + ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])
-                                    + 2.0 * real(ointup[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]));
+        // Avoid collapse(4): parallelize the expensive k-loop with reductions
+        for (int i=0; i<NTSR; i++){
+            for (int j=0; j<NTSR; j++){
+                for (int m=0; m<NEPS; m++){
+                    for (int n=0; n<=m; n++){
+                        for (int f=0; f<NFREQ; ++f){
+                            const double omega = dat.freq[f];
+                            const double inv_w2 = (f==0) ? 0.0 : 1.0/(omega*omega);
+                            double tmp_real_1 = 0.0;
+                            double tmp_imag_1 = 0.0;
 
-                            tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
-                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
-                        }
-                    }   
+                            #pragma omp parallel for reduction(+:tmp_real_1,tmp_imag_1) schedule(static)
+                            for (int k=0; k<NKPT; ++k){
+                                const double kw = dat.lat.KW[k];
+                                for (int c=0; c<NBAND_C[k]; ++c){
+                                    for (int v=0; v<NBAND_V[k]; ++v){
+                                        const double dE = E_k[k][c] - E_kq[k][v];
+                                        const double delta = (*diracdelta)(dE - omega);
+
+                                        // Load once, improve cache locality (k,c,v order)
+                                        const std::complex<double> up_i   = ointup[k][i][m][c][v];
+                                        const std::complex<double> dn_i   = ointdown[k][i][m][c][v];
+                                        const std::complex<double> up_j_c = std::conj(ointup[k][j][n][c][v]);
+                                        const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
+
+                                        // Same-spin plus mixed channel (purely real) contribution
+                                        const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
+                                        const double reO = std::real(t) + 2.0*std::real(up_i * dn_j_c);
+                                        const double imO = std::imag(t);
+
+                                        tmp_imag_1 += kw * reO * delta;
+                                        tmp_real_1 -= kw * imO * delta;
+                                    }
+                                }
+                            } // k-loop
+
+                            dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1 * inv_w2);
+                            dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1 * inv_w2);
+                        } // f
+                    }
                 }
-
-                if (f==0){
-                    tmp_imag_1 = 0;
-                    tmp_real_1 = 0;
-                }else{
-                    tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                    tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                }
-
-                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
             }
-        }}}}
+        }
         #pragma omp barrier
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
