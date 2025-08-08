@@ -500,6 +500,7 @@ void chi_tensor(env &dat){
     for (int q=0; q<NQ; q++){
         std::cout << "  (" << (q+1) << "/" << NQ << ")..." << std::endl; // (q/NQ)
         Eigen::Vector3d Q = dat.lat.Q[q];
+        Eigen::Vector3d K = dat.lat.K[k];
 
         std::cout << "    Solving for overlap integrals..." << std::endl;
         time_0 = std::chrono::system_clock::now();
@@ -523,7 +524,6 @@ void chi_tensor(env &dat){
                 }
             } else {
                 // Fallback: compute H at k+q and diagonalize
-                Eigen::Vector3d K = dat.lat.K[k];
                 Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
                 Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
                 for (int v=0; v<NBAND; v++){
