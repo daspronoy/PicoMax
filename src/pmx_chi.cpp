@@ -601,84 +601,62 @@ void chi_tensor(env &dat){
         
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
+        #pragma omp parallel for collapse(4)
+        for (int i=0; i<NTSR; i++){for (int j=0; j<NTSR; j++){for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
+            for (int f=0; f<NFREQ; f++){
+                double tmp_real_1 = 0;
+                double tmp_imag_1 = 0;
+                double tmp_real_2 = 0;
+                double tmp_imag_2 = 0;
+                // sum over k,c,v
+                std::complex<double> Oij;
+                for (int k=0; k<NKPT; k++){
+                    for (int c=0; c<NBAND_C[k]; c++){
+                        for (int v=0; v<NBAND_V[k]; v++){
+                            int c_spin = c % 2;  // 0=up, 1=down
+                            int v_spin = v % 2;
+                            double dE = E_k[k][c]-E_kq[k][v];
+                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]) + 
+                            ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            // + ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])
+                            // + ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]) + ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            // if (c_spin == v_spin) {
+                            //     if (c_spin == 0) {
+                            //         // Both spin-up
+                            //         Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
+                            //     } else {
+                            //         // Both spin-down
+                            //         Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
+                            //     }
+                            // } 
+                            // else {
+                            //     if (c_spin == 0) {
+                            //         // up-down spin
+                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
+                            //     } else {
+                            //         // down-up spin
+                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
+                            //     }
+                            // }
 
-        // Precompute 1/omega^2 and basic frequency window parameters
-        std::vector<double> inv_w2(NFREQ);
-        for (int f=0; f<NFREQ; ++f){
-            const double w = dat.freq[f];
-            inv_w2[f] = (f==0) ? 0.0 : 1.0/(w*w);
-        }
-        const double w0 = dat.freq[0];
-        const double df = dat.dfreq;
-        // Heuristic windows per broadening type to skip far-away frequencies
-        const int window_half_gauss = std::max(1, int(6.0*EPSILON/df));
-        const int window_half_lorentz = std::max(1, int(50.0*EPSILON/df));
-        const int window_half_default = window_half_gauss; // triangle/rect: use gauss-like
-        const int window_half = (dat.delta==1) ? window_half_lorentz : window_half_default;
-
-        // Optimized: accumulate all frequencies in one parallel region per (i,j,m,n)
-        for (int i=0; i<NTSR; i++){
-            for (int j=0; j<NTSR; j++){
-                for (int m=0; m<NEPS; m++){
-                    for (int n=0; n<=m; n++){
-                        std::vector<double> sum_real(NFREQ, 0.0);
-                        std::vector<double> sum_imag(NFREQ, 0.0);
-
-                        #pragma omp parallel
-                        {
-                            std::vector<double> local_real(NFREQ, 0.0);
-                            std::vector<double> local_imag(NFREQ, 0.0);
-
-                            #pragma omp for nowait schedule(static)
-                            for (int k=0; k<NKPT; ++k){
-                                const double kw = dat.lat.KW[k];
-                                for (int c=0; c<NBAND_C[k]; ++c){
-                                    for (int v=0; v<NBAND_V[k]; ++v){
-                                        const double dE = E_k[k][c] - E_kq[k][v];
-
-                                        // Load once per (k,c,v)
-                                        const std::complex<double> up_i   = ointup[k][i][m][c][v];
-                                        const std::complex<double> dn_i   = ointdown[k][i][m][c][v];
-                                        const std::complex<double> up_j_c = std::conj(ointup[k][j][n][c][v]);
-                                        const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
-
-                                        const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
-                                        const double reO = std::real(t) + 2.0*std::imag(up_i * dn_j_c);
-                                        const double imO = std::imag(t);
-
-                                        // Only accumulate a small frequency window around dE
-                                        int f0   = int((dE - w0)/df);
-                                        int fmin = std::max(0, f0 - window_half);
-                                        int fmax = std::min(NFREQ-1, f0 + window_half);
-                                        for (int f=fmin; f<=fmax; ++f){
-                                            const double omega = dat.freq[f];
-                                            const double delta = (*diracdelta)(dE - omega);
-                                            local_imag[f] += kw * reO * delta;
-                                            local_real[f] -= kw * imO * delta;
-                                        }
-                                    }
-                                }
-                            } // k-loop
-
-                            // Merge thread-local partial sums
-                            #pragma omp critical
-                            {
-                                for (int f=0; f<NFREQ; ++f){
-                                    sum_imag[f] += local_imag[f];
-                                    sum_real[f] += local_real[f];
-                                }
-                            }
-                        } // end parallel
-
-                        // Final scaling per frequency (apply 1/omega^2 and SCALEFACTOR)
-                        for (int f=0; f<NFREQ; ++f){
-                            dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (sum_imag[f] * inv_w2[f]);
-                            dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (sum_real[f] * inv_w2[f]);
+                            tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
+                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
                         }
-                    }
+                    }   
                 }
+
+                if (f==0){
+                    tmp_imag_1 = 0;
+                    tmp_real_1 = 0;
+                }else{
+                    tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                    tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
+                }
+
+                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
+                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
             }
-        }
+        }}}}
         #pragma omp barrier
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
