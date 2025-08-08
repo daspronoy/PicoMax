@@ -376,13 +376,6 @@ void chi_tensor(env &dat){
     std::complex<double> ***C_k_down; // eigenvector at k [NK x NC x NPW]
     C_k_up = new std::complex<double> **[NKPT];
     C_k_down = new std::complex<double> **[NKPT];
-
-    // Cache for valence eigenvectors and ascending eigenvalues at each k (to reuse as k+q)
-    std::vector<int> NBAND_V_all(NKPT, 0);
-    std::vector<std::vector<std::vector<std::complex<double>>>> Vk_up(NKPT);
-    std::vector<std::vector<std::vector<std::complex<double>>>> Vk_down(NKPT);
-    std::vector<std::vector<double>> E_k_asc(NKPT);
-
     #pragma omp parallel for
     for (int k=0; k<NKPT; k++){
         // vector{k}
@@ -394,7 +387,6 @@ void chi_tensor(env &dat){
         // compute eigenvalue problem at k
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_k(H);
 
-        // store descending-ordered energies into E_k for existing conduction logic
         E_k[k] = new double [NBAND];
         for (int c=0; c<NBAND; c++){
             E_k[k][c] = eigsolver_k.eigenvalues()(NBAND-1-c)-dat.energyoffset;
@@ -406,53 +398,23 @@ void chi_tensor(env &dat){
         C_k_up[k] = new std::complex<double> *[NBAND_C[k]];
         C_k_down[k] = new std::complex<double> *[NBAND_C[k]];
         for (int c=0; c<NBAND_C[k]; c++){
+            const int NPW_SOC = 2 * NPW;
+            // C_k[k][c] = new std::complex<double> [NPW_SOC];
             C_k_up[k][c] = new std::complex<double> [NPW];
             C_k_down[k][c] = new std::complex<double> [NPW];
-            int col = NBAND-1-c; // top of spectrum
+            // for (int p=0; p<NPW_SOC; p++){
+            //     C_k[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(p);
+            // }// loop over p
             for (int p=0; p<NPW; p++){
-                C_k_up[k][c][p]   = eigsolver_k.eigenvectors().col(col)(2*p);
-                C_k_down[k][c][p] = eigsolver_k.eigenvectors().col(col)(2*p+1);
-            }
-        }
-
-        // Cache ascending eigenvalues (shifted) and valence eigenvectors at k
-        E_k_asc[k].resize(NBAND);
-        for (int n=0; n<NBAND; ++n){
-            E_k_asc[k][n] = eigsolver_k.eigenvalues()(n) - dat.energyoffset;
-        }
-        int nv = NBAND;
-        for (int v=0; v<NBAND; ++v){ if (E_k_asc[k][v] > 0.0) { nv = v; break; } }
-        NBAND_V_all[k] = nv;
-        Vk_up[k].resize(nv);
-        Vk_down[k].resize(nv);
-        for (int v=0; v<nv; ++v){
-            Vk_up[k][v].resize(NPW);
-            Vk_down[k][v].resize(NPW);
-            for (int p=0; p<NPW; ++p){
-                Vk_up[k][v][p]   = eigsolver_k.eigenvectors().col(v)(2*p);
-                Vk_down[k][v][p] = eigsolver_k.eigenvectors().col(v)(2*p+1);
-            }
-        }
+                C_k_up[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(2*p);
+                C_k_down[k][c][p] = eigsolver_k.eigenvectors().col(NBAND-1-c)(2*p+1);
+            }// loop over p
+        }// loop over c
     }
     #pragma omp barrier
     time_1 = std::chrono::system_clock::now();
     elapsed_time = time_1-time_0;
     std::cout << "  Elapsed time: " << elapsed_time.count() << " s" << std::endl;
-
-    // Build (k,q)->kq index map to reuse k+q eigenpairs when they land on the k-grid
-    std::vector<std::vector<int>> k_plus_q_map(NKPT, std::vector<int>(NQ, -1));
-    const double tol2 = 1e-12; // tolerance on squared distance
-    for (int k=0; k<NKPT; ++k){
-        for (int q=0; q<NQ; ++q){
-            Eigen::Vector3d target = dat.lat.K[k] + dat.lat.Q[q];
-            int best_idx = -1; double best_d2 = 1e30;
-            for (int kp=0; kp<NKPT; ++kp){
-                double d2 = (dat.lat.K[kp] - target).squaredNorm();
-                if (d2 < best_d2){ best_d2 = d2; best_idx = kp; }
-            }
-            if (best_d2 <= tol2) k_plus_q_map[k][q] = best_idx;
-        }
-    }
 
     //======================================================================
     // initialize large temporary variables
@@ -505,43 +467,36 @@ void chi_tensor(env &dat){
         time_0 = std::chrono::system_clock::now();
         #pragma omp parallel for
         for (int k=0; k<NKPT; k++){
+            
+            // Hamiltonian at k+q
             Eigen::Vector3d K = dat.lat.K[k];
-            int kq_idx = k_plus_q_map[k][q];
-            if (kq_idx >= 0){
-                // Reuse cached valence eigenpairs from kq_idx
-                NBAND_V[k] = NBAND_V_all[kq_idx];
-                C_kq_up[k] = new std::complex<double> *[NBAND_V[k]];
-                C_kq_down[k] = new std::complex<double> *[NBAND_V[k]];
-                for (int v=0; v<NBAND_V[k]; ++v){
-                    C_kq_up[k][v] = new std::complex<double>[NPW];
-                    C_kq_down[k][v] = new std::complex<double>[NPW];
-                    for (int p=0; p<NPW; ++p){
-                        C_kq_up[k][v][p]   = Vk_up[kq_idx][v][p];
-                        C_kq_down[k][v][p] = Vk_down[kq_idx][v][p];
-                    }
-                    // also set eigenvalue for later dE (only v<NBAND_V used)
-                    E_kq[k][v] = E_k_asc[kq_idx][v];
-                }
-            } else {
-                // Fallback: compute H at k+q and diagonalize
-                Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
-                Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
-                for (int v=0; v<NBAND; v++){
-                    E_kq[k][v] = double(eigsolver_kq.eigenvalues()(v))-dat.energyoffset;
-                    if (E_kq[k][v]>0) { NBAND_V[k] = v; break; }
-                }
-                C_kq_up[k] = new std::complex<double> *[NBAND_V[k]];
-                C_kq_down[k] = new std::complex<double> *[NBAND_V[k]];
-                for (int v=0; v<NBAND_V[k]; v++){
-                    C_kq_up[k][v] = new std::complex<double> [NPW];
-                    C_kq_down[k][v] = new std::complex<double> [NPW];
-                    for (int p=0; p<NPW; p++){
-                        C_kq_up[k][v][p]   = eigsolver_kq.eigenvectors().col(v)(2*p);
-                        C_kq_down[k][v][p] = eigsolver_kq.eigenvectors().col(v)(2*p+1);
-                    }
+            Eigen::MatrixXcd H = HamiltonianEPM(dat.lat.G,K+Q,dat.lat.atomic,dat.mat);   
+
+            // compute eigenvalue problem at k+q
+            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigsolver_kq(H);
+            for (int v=0; v<NBAND; v++){
+                E_kq[k][v] = double(eigsolver_kq.eigenvalues()(v))-dat.energyoffset;
+                if (E_kq[k][v]>0) {
+                    NBAND_V[k] = v;
+                    break;
                 }
             }
-
+            C_kq_up[k] = new std::complex<double> *[NBAND_V[k]];
+            C_kq_down[k] = new std::complex<double> *[NBAND_V[k]];
+            for (int v=0; v<NBAND_V[k]; v++){
+                const int NPW_SOC = 2 * NPW;
+                // C_kq[k][v] = new std::complex<double> [NPW_SOC];
+                C_kq_up[k][v] = new std::complex<double> [NPW];
+                C_kq_down[k][v] = new std::complex<double> [NPW];
+                // for (int p=0; p<NPW_SOC; p++){
+                //     C_kq[k][v][p] = eigsolver_kq.eigenvectors().col(v)(p);
+                // }
+                for (int p=0; p<NPW; p++){
+                    C_kq_up[k][v][p] = eigsolver_kq.eigenvectors().col(v)(2*p);
+                    C_kq_down[k][v][p] = eigsolver_kq.eigenvectors().col(v)(2*p+1);
+                }
+            }
+            
             // overlap integrals
             for (int m=0; m<NEPS; m++){
                 std::vector<Eigen::Vector3cd> uvec_m = uvec_LT(Q+dat.lat.G[m]);
@@ -601,62 +556,84 @@ void chi_tensor(env &dat){
         
         std::cout << "    Solving for Xijmn..." << std::endl;
         time_0 = std::chrono::system_clock::now();
-        #pragma omp parallel for collapse(4)
-        for (int i=0; i<NTSR; i++){for (int j=0; j<NTSR; j++){for (int m=0; m<NEPS; m++){for (int n=0; n<=m; n++){
-            for (int f=0; f<NFREQ; f++){
-                double tmp_real_1 = 0;
-                double tmp_imag_1 = 0;
-                double tmp_real_2 = 0;
-                double tmp_imag_2 = 0;
-                // sum over k,c,v
-                std::complex<double> Oij;
-                for (int k=0; k<NKPT; k++){
-                    for (int c=0; c<NBAND_C[k]; c++){
-                        for (int v=0; v<NBAND_V[k]; v++){
-                            int c_spin = c % 2;  // 0=up, 1=down
-                            int v_spin = v % 2;
-                            double dE = E_k[k][c]-E_kq[k][v];
-                            Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]) + 
-                            ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                            // + ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v])
-                            // + ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]) + ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                            // if (c_spin == v_spin) {
-                            //     if (c_spin == 0) {
-                            //         // Both spin-up
-                            //         Oij = ointup[k][i][m][c][v] * conj(ointup[k][j][n][c][v]);
-                            //     } else {
-                            //         // Both spin-down
-                            //         Oij = ointdown[k][i][m][c][v] * conj(ointdown[k][j][n][c][v]);
-                            //     }
-                            // } 
-                            // else {
-                            //     if (c_spin == 0) {
-                            //         // up-down spin
-                            //         Oij = ointupdown[k][i][m][c][v] * conj(ointupdown[k][j][n][c][v]);
-                            //     } else {
-                            //         // down-up spin
-                            //         Oij = ointdownup[k][i][m][c][v] * conj(ointdownup[k][j][n][c][v]);
-                            //     }
-                            // }
 
-                            tmp_imag_1 += dat.lat.KW[k] * Oij.real() * (*diracdelta)(dE-dat.freq[f]);
-                            tmp_real_1 -= dat.lat.KW[k] * Oij.imag() * (*diracdelta)(dE-dat.freq[f]);
+        // Precompute 1/omega^2 and basic frequency window parameters
+        std::vector<double> inv_w2(NFREQ);
+        for (int f=0; f<NFREQ; ++f){
+            const double w = dat.freq[f];
+            inv_w2[f] = (f==0) ? 0.0 : 1.0/(w*w);
+        }
+        const double w0 = dat.freq[0];
+        const double df = dat.dfreq;
+        // Heuristic windows per broadening type to skip far-away frequencies
+        const int window_half_gauss = std::max(1, int(6.0*EPSILON/df));
+        const int window_half_lorentz = std::max(1, int(50.0*EPSILON/df));
+        const int window_half_default = window_half_gauss; // triangle/rect: use gauss-like
+        const int window_half = (dat.delta==1) ? window_half_lorentz : window_half_default;
+
+        // Optimized: accumulate all frequencies in one parallel region per (i,j,m,n)
+        for (int i=0; i<NTSR; i++){
+            for (int j=0; j<NTSR; j++){
+                for (int m=0; m<NEPS; m++){
+                    for (int n=0; n<=m; n++){
+                        std::vector<double> sum_real(NFREQ, 0.0);
+                        std::vector<double> sum_imag(NFREQ, 0.0);
+
+                        #pragma omp parallel
+                        {
+                            std::vector<double> local_real(NFREQ, 0.0);
+                            std::vector<double> local_imag(NFREQ, 0.0);
+
+                            #pragma omp for nowait schedule(static)
+                            for (int k=0; k<NKPT; ++k){
+                                const double kw = dat.lat.KW[k];
+                                for (int c=0; c<NBAND_C[k]; ++c){
+                                    for (int v=0; v<NBAND_V[k]; ++v){
+                                        const double dE = E_k[k][c] - E_kq[k][v];
+
+                                        // Load once per (k,c,v)
+                                        const std::complex<double> up_i   = ointup[k][i][m][c][v];
+                                        const std::complex<double> dn_i   = ointdown[k][i][m][c][v];
+                                        const std::complex<double> up_j_c = std::conj(ointup[k][j][n][c][v]);
+                                        const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
+
+                                        const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
+                                        const double reO = std::real(t);
+                                        const double imO = std::imag(t);
+
+                                        // Only accumulate a small frequency window around dE
+                                        int f0   = int((dE - w0)/df);
+                                        int fmin = std::max(0, f0 - window_half);
+                                        int fmax = std::min(NFREQ-1, f0 + window_half);
+                                        for (int f=fmin; f<=fmax; ++f){
+                                            const double omega = dat.freq[f];
+                                            const double delta = (*diracdelta)(dE - omega);
+                                            local_imag[f] += kw * reO * delta;
+                                            local_real[f] -= kw * imO * delta;
+                                        }
+                                    }
+                                }
+                            } // k-loop
+
+                            // Merge thread-local partial sums
+                            #pragma omp critical
+                            {
+                                for (int f=0; f<NFREQ; ++f){
+                                    sum_imag[f] += local_imag[f];
+                                    sum_real[f] += local_real[f];
+                                }
+                            }
+                        } // end parallel
+
+                        // Final scaling per frequency (apply 1/omega^2 and SCALEFACTOR)
+                        for (int f=0; f<NFREQ; ++f){
+                            dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (sum_imag[f] * inv_w2[f]);
+                            dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (sum_real[f] * inv_w2[f]);
                         }
-                    }   
+                    }
                 }
-
-                if (f==0){
-                    tmp_imag_1 = 0;
-                    tmp_real_1 = 0;
-                }else{
-                    tmp_imag_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                    tmp_real_1 *= 1 / (dat.freq[f]*dat.freq[f]);
-                }
-
-                dat.ImXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_imag_1);
-                dat.ReXij[q][i][j][m][n][f] = SCALEFACTOR * (tmp_real_1);
             }
-        }}}}
+        }
         #pragma omp barrier
         time_1 = std::chrono::system_clock::now();
         elapsed_time = time_1-time_0;
