@@ -539,6 +539,8 @@ void chi_tensor(env &dat){
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 ointup[k][i][m][c][v] += conj(C_k_up[k][c][p]) * C_kq_up[k][v][loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k_down[k][c][p]) * C_kq_down[k][v][loci_p] * orb_contribution;
+                                ointupdown[k][i][m][c][v] += conj(C_k_up[k][c][p]) * C_kq_down[k][v][loci_p] * soc_contribution;
+                                ointdownup[k][i][m][c][v] += conj(C_k_down[k][c][p]) * C_kq_up[k][v][loci_p] * soc_contribution;
                             }
                         }//loop over v
                     }//loop over c
@@ -590,11 +592,15 @@ void chi_tensor(env &dat){
                                         // Load once per (k,c,v)
                                         const std::complex<double> up_i   = ointup[k][i][m][c][v];
                                         const std::complex<double> dn_i   = ointdown[k][i][m][c][v];
+                                        const std::complex<double> updn_i   = ointupdown[k][i][m][c][v];
+                                        const std::complex<double> dnup_i   = ointdownup[k][i][m][c][v];
                                         const std::complex<double> up_j_c = std::conj(ointup[k][j][n][c][v]);
                                         const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
+                                        const std::complex<double> updn_j_c = std::conj(ointupdown[k][j][n][c][v]);
+                                        const std::complex<double> dnup_j_c = std::conj(ointdownup[k][j][n][c][v]);
 
-                                        const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
-                                        const double reO = std::real(t) + 2.0*real(up_i*dn_j_c+ dn_i*up_j_c);
+                                        const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c - updn_i*updn_j_c - dnup_i*dnup_j_c;
+                                        const double reO = std::real(t) + 2.0*real(up_i*dn_j_c+ dn_i*up_j_c - dnup_i*updn_j_c - updn_i*dnup_j_c);
                                         const double imO = std::imag(t);
 
                                         // Only accumulate a small frequency window around dE
