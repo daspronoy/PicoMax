@@ -643,7 +643,7 @@ void chi_tensor(env &dat){
                                         const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
 
                                         const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
-                                        const double reO = std::real(t);
+                                        const double reO = std::real(t) + 2.0*std::imag(up_i * dn_j_c);
                                         const double imO = std::imag(t);
 
                                         // Only accumulate a small frequency window around dE
