@@ -539,10 +539,6 @@ void chi_tensor(env &dat){
                                 std::complex<double> orb_contribution = uvec_m[i].dot(v_orb);
                                 ointup[k][i][m][c][v] += conj(C_k_up[k][c][p]) * C_kq_up[k][v][loci_p] * orb_contribution;
                                 ointdown[k][i][m][c][v] += conj(C_k_down[k][c][p]) * C_kq_down[k][v][loci_p] * orb_contribution;
-                                // ointupdown[k][i][m][c][v] += (conj(C_k_up[k][c][p]) * C_kq_down[k][v][loci_p] + conj(C_k_down[k][c][p]) * C_kq_up[k][v][loci_p]) * orb_contribution;
-                                // ointdownup[k][i][m][c][v] += (conj(C_k_down[k][c][p]) * C_kq_up[k][v][loci_p] + conj(C_k_up[k][c][p]) * C_kq_down[k][v][loci_p]) * orb_contribution;
-                                // ointdownup[k][i][m][c][v] -= (conj(C_k_down[k][c][p]) * C_kq_up[k][v][loci_p] - conj(C_k_up[k][c][p]) * C_kq_down[k][v][loci_p]) * soc_contribution;
-                                // ointdownup[k][i][m][c][v] -= conj(C_k_down[k][c][p]) * C_kq_up[k][v][loci_p] * soc_contribution;
                             }
                         }//loop over v
                     }//loop over c
@@ -598,7 +594,7 @@ void chi_tensor(env &dat){
                                         const std::complex<double> dn_j_c = std::conj(ointdown[k][j][n][c][v]);
 
                                         const std::complex<double> t = up_i*up_j_c + dn_i*dn_j_c;
-                                        const double reO = std::real(t);
+                                        const double reO = std::real(t) + 2.0*real(up_i*dn_j_c+ dn_i*up_j_c);
                                         const double imO = std::imag(t);
 
                                         // Only accumulate a small frequency window around dE
