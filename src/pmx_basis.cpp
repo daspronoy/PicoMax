@@ -402,6 +402,11 @@ void generate_kpt_fcc (lattice &lat){
     }
 }
 
+
+
+
+
+ //-----------------------------------------------------------------------------------------------------------------------------------------------------
 /*
     generate k-vectors in the full 1st BZ of hexagonal crystal structure
 */
@@ -512,7 +517,11 @@ void generate_kpt_hex (lattice &lat){
         shiftindex[cnt][1] = i2;
         shiftindex[cnt][2] = i3;
         cnt += 1;
-    }}}
+    }}};
+
+    // Ensure clean state
+    lat.K.clear();
+    lat.KW.clear();
 
     lat.K.reserve(NKPT);
     for (int i1=0; i1<N; i1++){for (int i2=0; i2<N; i2++){for (int i3=0; i3<N; i3++){
@@ -529,15 +538,15 @@ void generate_kpt_hex (lattice &lat){
         }
     }
 
-    // uniform weight of k-points
-    lat.KW.reserve(NKPT);
-    for (int k=0; k<NKPT; k++){
-        lat.KW[k] = 1.0/NKPT;
-    }
+    // uniform weight of k-points (size appropriately; do not index into an empty vector)
+    lat.KW.assign(NKPT, 1.0/static_cast<double>(NKPT));
 
     // ADD SYMMETRIZATION HERE
     symmetrize_kpoints_xy_hex(lat);
 }
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 
