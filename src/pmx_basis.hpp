@@ -6,7 +6,7 @@
     * high-symmetry point
     * transverse vector
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: June 6, 2024
 */
 

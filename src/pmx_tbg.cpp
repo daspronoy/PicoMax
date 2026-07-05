@@ -1,7 +1,7 @@
 /*
     pmx_tbg.cpp | 
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: November 5, 2024
 */
 

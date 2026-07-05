@@ -1,7 +1,7 @@
 /*
     pmx_io.cpp | includes picomax initialization, input, output functionalities
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: June 6, 2024
 */
 

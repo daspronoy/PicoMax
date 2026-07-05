@@ -5,7 +5,7 @@
 /*
     pmx_tbg.cpp | includes twisted bilayer graphene into PicoMax
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: November 5, 2024
 */
 

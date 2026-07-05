@@ -5,7 +5,7 @@
 /*
     pmx_chi.cpp | includes susceptibility calculation functinalities of picomax
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: June 6, 2024
 */
 

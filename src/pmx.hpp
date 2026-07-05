@@ -5,7 +5,7 @@
 /*
     pmx.hpp | main header file for picomax
 
-    Author: Jungho Mun
+    Authors: Jungho Mun, Pronoy Das
     Date: June 6, 2024
 */
    
